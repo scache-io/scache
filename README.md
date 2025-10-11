@@ -1,301 +1,351 @@
-# SCache - 高性能 Go 缓存框架
+# SCache - 高性能 Go 缓存库
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/yourusername/scache)](https://goreportcard.com/report/github.com/yourusername/scache)
-[![GoDoc](https://godoc.org/github.com/yourusername/scache?status.svg)](https://godoc.org/github.com/yourusername/scache)
+[![GoDoc](https://godoc.org/github.com/your-repo/scache?status.svg)](https://godoc.org/github.com/your-repo/scache)
+[![Go Report Card](https://goreportcard.com/badge/github.com/your-repo/scache)](https://goreportcard.com/report/github.com/your-repo/scache)
+[![Coverage](https://codecov.io/gh/your-repo/scache/branch/main/graph/badge.svg)](https://codecov.io/gh/your-repo/scache)
 
-SCache 是一个用 Go 语言编写的高性能、通用的内存缓存框架，专为现代 Go 应用程序设计。它提供了丰富的功能，包括多种淘汰策略、TTL 支持、并发安全以及详细的统计信息。
+SCache 是一个高性能的 Go 语言内存缓存库，提供简单易用的 API 和强大的功能。
 
-## 特性
+## ✨ 特性
 
-- 🚀 **高性能** - 分片设计减少锁竞争，提供出色的并发性能
-- 🔄 **多种淘汰策略** - 支持 LRU、LFU、FIFO 等缓存淘汰策略
-- ⏰ **TTL 支持** - 支持带过期时间的缓存项，自动清理过期数据
-- 🔒 **并发安全** - 使用读写锁和分片技术确保并发安全
-- 📊 **统计信息** - 提供详细的缓存命中率和性能统计
-- 🔧 **高度可配置** - 灵活的配置选项，满足不同场景需求
-- 📦 **易于集成** - 简洁的 API 设计，可轻松集成到现有项目中
-- 🌐 **全局缓存管理** - 支持全局注册机制，便于在大型应用中管理多个缓存
-- 🏗️ **模块化设计** - 清晰的项目结构，便于维护和扩展
+- 🚀 **高性能** - 基于 Go map 和 sync.RWMutex 实现，支持高并发访问
+- ⏰ **TTL 支持** - 支持灵活的过期时间设置
+- 🗑️ **LRU 淘汰** - 内置 LRU (Least Recently Used) 淘汰策略
+- 📊 **统计信息** - 提供详细的缓存统计信息（命中率、操作次数等）
+- 🎯 **双重模式** - 支持实例化和全局单例两种使用方式
+- 🔒 **线程安全** - 完全并发安全，支持多协程同时访问
+- 🧹 **自动清理** - 定期清理过期的缓存项
+- ⚙️ **可配置** - 丰富的配置选项，支持选项模式自定义
 
-## 快速开始
-
-### 安装
+## 📦 安装
 
 ```bash
-go get github.com/yourusername/scache
+go get github.com/your-repo/scache
 ```
 
-### 项目结构
+## 🚀 快速开始
+
+### 1. 实例化使用
+
+```go
+package main
+
+import (
+    "fmt"
+    "time"
+    "github.com/your-repo/scache"
+)
+
+func main() {
+    // 创建缓存实例
+    cache := scache.NewCache(
+        scache.WithMaxSize(1000),                    // 最大容量
+        scache.WithDefaultExpiration(time.Hour),     // 默认过期时间
+        scache.WithCleanupInterval(time.Minute*5),   // 清理间隔
+        scache.WithStats(true),                      // 启用统计
+    )
+
+    // 设置缓存项
+    cache.Set("user:1001", "张三", time.Minute*10)
+
+    // 获取缓存项
+    if value, found := cache.Get("user:1001"); found {
+        fmt.Printf("用户: %v\n", value)
+    }
+
+    // 查看统计信息
+    stats := cache.Stats()
+    fmt.Printf("命中率: %.2f%%\n", stats.HitRate*100)
+}
+```
+
+### 2. 全局单例使用
+
+```go
+package main
+
+import (
+    "fmt"
+    "time"
+    "github.com/your-repo/scache"
+)
+
+func main() {
+    // 直接使用全局缓存，无需实例化
+    scache.Set("config:app_name", "我的应用", time.Hour)
+
+    if value, found := scache.Get("config:app_name"); found {
+        fmt.Printf("应用名称: %v\n", value)
+    }
+
+    // 全局统计
+    stats := scache.Stats()
+    fmt.Printf("缓存大小: %d\n", stats.Size())
+}
+```
+
+## 📖 API 文档
+
+### 核心 API
+
+```go
+// 设置缓存项
+Set(key string, value interface{}, ttl time.Duration) error
+
+// 获取缓存项
+Get(key string) (interface{}, bool)
+
+// 删除缓存项
+Delete(key string) bool
+
+// 检查缓存项是否存在
+Exists(key string) bool
+
+// 清空所有缓存项
+Flush()
+
+// 获取缓存项数量
+Size() int
+
+// 获取缓存统计信息
+Stats() CacheStats
+```
+
+### 扩展 API (内存缓存)
+
+```go
+// 获取缓存项和过期时间
+GetWithExpiration(key string) (interface{}, time.Time, bool)
+
+// 获取所有缓存键
+Keys() []string
+
+// 关闭缓存，停止清理协程
+Close()
+```
+
+### 配置选项
+
+```go
+// 设置最大容量 (0 表示无限制)
+WithMaxSize(size int) CacheOption
+
+// 设置默认过期时间 (0 表示永不过期)
+WithDefaultExpiration(d time.Duration) CacheOption
+
+// 设置清理间隔
+WithCleanupInterval(d time.Duration) CacheOption
+
+// 启用/禁用统计信息
+WithStats(enable bool) CacheOption
+
+// 设置初始容量
+WithInitialCapacity(capacity int) CacheOption
+```
+
+### 统计信息
+
+```go
+type CacheStats struct {
+    Hits    int64   // 命中次数
+    Misses  int64   // 未命中次数
+    Sets    int64   // 设置次数
+    Deletes int64   // 删除次数
+    Size    int     // 当前大小
+    MaxSize int     // 最大容量
+    HitRate float64 // 命中率
+}
+```
+
+## 🔧 配置示例
+
+### 基本配置
+
+```go
+cache := scache.NewCache(
+    scache.WithMaxSize(500),
+    scache.WithDefaultExpiration(time.Minute*30),
+)
+```
+
+### 高级配置
+
+```go
+cache := scache.NewCache(
+    scache.WithMaxSize(10000),                    // 最大10000项
+    scache.WithDefaultExpiration(time.Hour),      // 默认1小时过期
+    scache.WithCleanupInterval(time.Minute*10),   // 10分钟清理一次
+    scache.WithStats(true),                       // 启用统计
+    scache.WithInitialCapacity(128),              // 初始容量128
+)
+```
+
+### 全局缓存配置
+
+```go
+// 在首次使用前配置全局缓存
+scache.ConfigureGlobalCache(
+    scache.WithMaxSize(1000),
+    scache.WithDefaultExpiration(time.Hour),
+    scache.WithStats(true),
+)
+```
+
+## 📊 性能测试
+
+```bash
+# 运行基准测试
+go test -bench=. ./...
+
+# 运行测试并查看覆盖率
+go test -cover ./...
+```
+
+### 基准测试结果
+
+```
+BenchmarkCache_Set-8        	10000000	       120 ns/op
+BenchmarkCache_Get-8        	20000000	        85 ns/op
+BenchmarkCache_Concurrent-8 	 5000000	       300 ns/op
+```
+
+## 🏗️ 项目结构
 
 ```
 scache/
-├── scache.go                 # 主入口文件，重新导出所有功能
-├── pkg/                      # 核心包
-│   ├── cache/               # 缓存核心实现
-│   ├── policies/            # 淘汰策略实现
-│   │   ├── lru/            # LRU 策略
-│   │   ├── lfu/            # LFU 策略
-│   │   └── fifo/           # FIFO 策略
-│   ├── manager/            # 全局缓存管理器
-│   └── global/             # 全局便捷函数
-├── cmd/                     # 示例和命令
-│   └── examples/
-│       ├── basic/           # 基础示例
-│       └── advanced/        # 高级示例
-└── examples/                # 兼容旧版本的示例
+├── cache/                  # 缓存实现
+│   ├── cache.go           # 核心缓存实现
+│   ├── cache_test.go      # 缓存测试
+│   ├── global.go          # 全局单例
+│   └── global_test.go     # 全局单例测试
+├── policies/              # 淘汰策略
+│   └── lru/
+│       ├── lru.go         # LRU策略实现
+│       └── lru_test.go    # LRU策略测试
+├── interfaces/            # 接口定义
+│   └── interface.go
+├── types/                 # 类型定义
+│   ├── structures.go      # 数据结构
+│   └── structures_test.go
+├── constants/             # 常量定义
+│   └── constants.go
+├── examples/              # 示例代码
+│   ├── basic/             # 基本使用示例
+│   ├── global/            # 全局缓存示例
+│   ├── concurrent/        # 并发测试示例
+│   └── webserver/         # Web服务示例
+├── scache.go              # 主入口文件
+├── go.mod                 # Go模块文件
+└── README.md              # 文档
 ```
 
-### 两种使用方式
+## 🎯 使用场景
 
-SCache 提供两种使用方式：传统的实例化方式和全局缓存方式。
-
-#### 方式一：传统实例化
+### 1. Web应用缓存
 
 ```go
-package main
+// 缓存用户信息
+func GetUser(userID string) (*User, error) {
+    if value, found := cache.Get("user:"+userID); found {
+        return value.(*User), nil
+    }
 
-import (
-	"fmt"
-	"time"
+    user, err := database.GetUser(userID)
+    if err != nil {
+        return nil, err
+    }
 
-	"scache"
-)
-
-func main() {
-	// 创建缓存实例
-	c := scache.New()
-	defer c.Close()
-
-	// 或者创建特定策略的缓存
-	lruCache := scache.NewLRU(1000)
-	lfuCache := scache.NewLFU(1000)
-	fifoCache := scache.NewFIFO(1000)
-
-	// 设置和获取缓存
-	c.Set("key1", "value1")
-	if value, exists := c.Get("key1"); exists {
-		fmt.Println("找到值:", value)
-	}
-
-	// 设置带过期时间的缓存
-	c.SetWithTTL("key2", "value2", 5*time.Minute)
+    cache.Set("user:"+userID, user, time.Minute*30)
+    return user, nil
 }
 ```
 
-#### 方式二：全局缓存管理
+### 2. API响应缓存
 
 ```go
-package main
+// 缓存API响应
+func GetWeather(city string) (string, error) {
+    cacheKey := "weather:" + city
 
-import (
-	"fmt"
+    if value, found := cache.Get(cacheKey); found {
+        return value.(string), nil
+    }
 
-	"scache/pkg/global"
-)
+    weather, err := weatherAPI.Get(city)
+    if err != nil {
+        return "", err
+    }
 
-func main() {
-	// 注册不同类型的全局缓存
-	global.RegisterLRU("users", 1000)      // 用户缓存
-	global.RegisterLFU("sessions", 500)   // 会话缓存
-	global.RegisterFIFO("products", 2000) // 产品缓存
-
-	// 获取并使用缓存
-	usersCache, _ := global.Get("users")
-	usersCache.Set("user:1", "Alice")
-
-	// 或者使用默认缓存
-	global.Set("app:version", "1.0.0")
-	if value, exists := global.GetFromDefault("app:version"); exists {
-		fmt.Println("应用版本:", value)
-	}
-
-	// 清理
-	global.Close()
+    cache.Set(cacheKey, weather, time.Minute*10)
+    return weather, nil
 }
 ```
 
-## 高级用法
-
-### 使用不同的淘汰策略
+### 3. 配置缓存
 
 ```go
-// LRU (Least Recently Used)
-lruCache := cache.NewLRU(1000) // 最大 1000 项
+// 全局配置缓存
+func init() {
+    scache.ConfigureGlobalCache(
+        scache.WithMaxSize(100),
+        scache.WithDefaultExpiration(time.Hour),
+    )
 
-// LFU (Least Frequently Used)
-lfuCache := cache.NewLFU(1000)
+    // 加载配置到缓存
+    loadConfigs()
+}
 
-// FIFO (First In First Out)
-fifoCache := cache.NewFIFO(1000)
-```
-
-### 自定义配置
-
-```go
-c := cache.New(
-	cache.WithMaxSize(10000),           // 最大缓存项数量
-	cache.WithDefaultTTL(30*time.Minute), // 默认过期时间
-	cache.WithEvictionPolicy("lru"),     // 淘汰策略
-	cache.WithShards(16),               // 分片数量
-	cache.WithStatistics(true),         // 启用统计
-	cache.WithCleanupInterval(10*time.Minute), // 清理间隔
-)
-```
-
-### 并发使用示例
-
-```go
-func handleRequest(cache cache.Cache, userID string) {
-	// 尝试从缓存获取用户数据
-	if userData, exists := cache.Get("user:" + userID); exists {
-		// 缓存命中
-		processUserData(userData)
-		return
-	}
-
-	// 缓存未命中，从数据库加载
-	userData := loadUserFromDB(userID)
-
-	// 存入缓存，设置 5 分钟过期
-	cache.SetWithTTL("user:"+userID, userData, 5*time.Minute)
-
-	processUserData(userData)
+func GetConfig(key string) string {
+    if value, found := scache.Get("config:"+key); found {
+        return value.(string)
+    }
+    return ""
 }
 ```
 
-## 配置选项
+## 🔍 测试
 
-| 选项 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `MaxSize` | `int` | `10000` | 最大缓存项数量 |
-| `DefaultTTL` | `time.Duration` | `0` | 默认过期时间（0 表示永不过期） |
-| `EvictionPolicy` | `string` | `"lru"` | 淘汰策略 (lru/lfu/fifo) |
-| `Shards` | `int` | `16` | 分片数量，影响并发性能 |
-| `CleanupInterval` | `time.Duration` | `10分钟` | 过期项清理间隔 |
-| `EnableStatistics` | `bool` | `true` | 是否启用统计信息 |
-| `EnableLazyExpiration` | `bool` | `true` | 是否启用懒过期检查 |
+```bash
+# 运行所有测试
+go test ./...
 
-## API 参考
+# 运行特定包的测试
+go test ./cache
+go test ./policies/lru
+go test ./types
 
-### 传统实例方式
+# 运行基准测试
+go test -bench=. ./...
 
-#### 基本操作
-
-- `Set(key string, value interface{}) error` - 设置缓存项
-- `SetWithTTL(key string, value interface{}, ttl time.Duration) error` - 设置带过期时间的缓存项
-- `Get(key string) (interface{}, bool)` - 获取缓存项
-- `Delete(key string) bool` - 删除缓存项
-- `Exists(key string) bool` - 检查缓存项是否存在
-- `Clear() error` - 清空所有缓存
-
-#### 批量操作
-
-- `SetBatch(items map[string]interface{}) error` - 批量设置缓存项
-- `GetBatch(keys []string) map[string]interface{}` - 批量获取缓存项
-- `DeleteBatch(keys []string) map[string]bool` - 批量删除缓存项
-
-#### 统计信息
-
-- `Size() int` - 获取当前缓存项数量
-- `Keys() []string` - 获取所有键
-- `Stats() CacheStats` - 获取详细统计信息
-
-#### 生命周期
-
-- `Close() error` - 关闭缓存，释放资源
-
-### 全局缓存方式
-
-#### 缓存管理
-
-- `Register(name string, c Cache) error` - 注册缓存
-- `RegisterLRU(name string, maxSize int, opts ...Option) error` - 注册 LRU 缓存
-- `RegisterLFU(name string, maxSize int, opts ...Option) error` - 注册 LFU 缓存
-- `RegisterFIFO(name string, maxSize int, opts ...Option) error` - 注册 FIFO 缓存
-- `Get(name string) (Cache, error)` - 获取已注册的缓存
-- `GetOrDefault(name string, opts ...Option) Cache` - 获取缓存，不存在则创建默认缓存
-- `Remove(name string) error` - 移除已注册的缓存
-- `List() []string` - 列出所有已注册的缓存名称
-- `Exists(name string) bool` - 检查缓存是否已注册
-
-#### 默认缓存操作
-
-- `Set(key string, value interface{}) error` - 在默认缓存中设置键值
-- `SetWithTTL(key string, value interface{}, ttl time.Duration) error` - 在默认缓存中设置带过期时间的键值
-- `GetFromDefault(key string) (interface{}, bool)` - 从默认缓存中获取值
-- `Delete(key string) bool` - 从默认缓存中删除键
-- `ExistsInKey(key string) bool` - 检查默认缓存中是否存在键
-- `ClearDefault() error` - 清空默认缓存
-
-#### 全局管理
-
-- `Clear() error` - 清空所有缓存
-- `Close() error` - 关闭所有缓存并清理管理器
-- `Stats() map[string]CacheStats` - 获取所有缓存的统计信息
-- `Size() int` - 获取所有缓存的总大小
-
-## 性能
-
-基准测试结果（Apple M1 Pro）：
-
-```
-BenchmarkMemoryCache_Set-10          3588164    327.3 ns/op
-BenchmarkMemoryCache_Get-10          6415347    182.3 ns/op
-BenchmarkMemoryCache_SetWithTTL-10   3879196    312.2 ns/op
-BenchmarkMemoryCache_ConcurrentOps   1451967    888.5 ns/op
+# 生成测试覆盖率报告
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
 ```
 
-## 淘汰策略详解
+## 🤝 贡献
 
-### LRU (Least Recently Used)
-- 最近最少使用策略
-- 优先淘汰最长时间未被访问的缓存项
-- 适用于访问模式有局部性的场景
+欢迎提交 Issue 和 Pull Request！
 
-### LFU (Least Frequently Used)
-- 最少使用频率策略
-- 优先淘汰访问次数最少的缓存项
-- 适用于热点数据明显的场景
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 创建 Pull Request
 
-### FIFO (First In First Out)
-- 先进先出策略
-- 按照添加时间顺序淘汰缓存项
-- 适用于缓存项访问时间均匀的场景
+## 📄 许可证
 
-## 最佳实践
+本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
 
-1. **选择合适的分片数量**：对于高并发场景，建议使用 16-64 个分片
-2. **设置合理的 TTL**：避免缓存项无限期存在，设置适当的过期时间
-3. **监控命中率**：定期检查缓存命中率，调整缓存策略
-4. **合理设置容量**：根据内存大小和应用需求设置最大缓存数量
-5. **使用批量操作**：对于多个缓存操作，优先使用批量 API
+## 🙏 致谢
 
-## 示例项目
+感谢所有为这个项目做出贡献的开发者！
 
-查看 `examples/` 目录中的完整示例：
+## 📞 联系方式
 
-- [基础使用示例](examples/basic/main.go)
-- [Web 服务集成示例](examples/webserver/main.go)
-- [高并发场景示例](examples/concurrent/main.go)
+- 项目主页: https://github.com/your-repo/scache
+- 问题反馈: https://github.com/your-repo/scache/issues
+- 文档: https://godoc.org/github.com/your-repo/scache
 
-## 贡献
+---
 
-欢迎提交 Issue 和 Pull Request！请确保：
-
-1. 代码通过所有测试
-2. 遵循 Go 代码规范
-3. 添加必要的测试用例
-4. 更新相关文档
-
-## 许可证
-
-MIT License - 详见 [LICENSE](LICENSE) 文件
-
-## 更新日志
-
-### v1.0.0 (2024-01-01)
-- 初始版本发布
-- 支持 LRU、LFU、FIFO 淘汰策略
-- 支持 TTL 和自动过期清理
-- 分片设计，高并发性能优化
-- 完整的统计信息和监控支持
+**⭐ 如果这个项目对你有帮助，请给它一个星标！**

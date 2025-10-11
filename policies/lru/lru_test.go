@@ -1,209 +1,246 @@
 package lru
 
 import (
+	"sync"
 	"testing"
 )
 
-func TestLRUPolicy_OnAccess(t *testing.T) {
-	policy := NewLRUPolicy(3)
-
-	policy.OnAdd("key1")
-	policy.OnAdd("key2")
-	policy.OnAdd("key3")
-
-	// 访问 key1，应该将其移到前面
-	policy.OnAccess("key1")
-
-	// 添加 key4，应该淘汰 key2（最旧的）
-	key, shouldEvict := policy.ShouldEvict()
-	if shouldEvict && key == "key2" {
-		policy.OnAdd("key4")
-	}
-
-	if policy.Contains("key2") {
-		t.Error("Expected key2 to be evicted")
-	}
-
-	if !policy.Contains("key1") {
-		t.Error("Expected key1 to still exist")
+func TestNewLRUPolicy(t *testing.T) {
+	policy := NewLRUPolicy(10)
+	if policy == nil {
+		t.Fatal("NewLRUPolicy() returned nil")
 	}
 }
 
-func TestLRUPolicy_OnAdd(t *testing.T) {
-	policy := NewLRUPolicy(2)
+func TestLRUPolicy_Access(t *testing.T) {
+	policy := NewLRUPolicy(3)
 
-	policy.OnAdd("key1")
-	if policy.Len() != 1 {
-		t.Errorf("Expected length 1, got %d", policy.Len())
+	// 访问新键
+	policy.Access("key1")
+	if !policy.Contains("key1") {
+		t.Error("key1 should exist after access")
 	}
 
-	policy.OnAdd("key2")
-	if policy.Len() != 2 {
-		t.Errorf("Expected length 2, got %d", policy.Len())
+	if policy.Size() != 1 {
+		t.Errorf("Expected size 1, got %d", policy.Size())
 	}
 
-	// 添加第三个，应该淘汰第一个
-	policy.OnAdd("key3")
-	if policy.Len() != 2 {
-		t.Errorf("Expected length 2, got %d", policy.Len())
+	// 访问相同键
+	policy.Access("key1")
+	if policy.Size() != 1 {
+		t.Error("Accessing existing key should not change size")
+	}
+
+	// 访问多个键
+	policy.Access("key2")
+	policy.Access("key3")
+	if policy.Size() != 3 {
+		t.Errorf("Expected size 3, got %d", policy.Size())
+	}
+
+	// 访问新键应淘汰最旧的
+	policy.Access("key4")
+	if policy.Size() != 3 {
+		t.Error("Size should remain at capacity")
 	}
 
 	if policy.Contains("key1") {
-		t.Error("Expected key1 to be evicted")
+		t.Error("key1 should be evicted")
+	}
+
+	if !policy.Contains("key4") {
+		t.Error("key4 should exist")
 	}
 }
 
-func TestLRUPolicy_OnRemove(t *testing.T) {
-	policy := NewLRUPolicy(3)
-
-	policy.OnAdd("key1")
-	policy.OnAdd("key2")
-	policy.OnAdd("key3")
-
-	policy.OnRemove("key2")
-
-	if policy.Contains("key2") {
-		t.Error("Expected key2 to be removed")
-	}
-
-	if policy.Len() != 2 {
-		t.Errorf("Expected length 2, got %d", policy.Len())
-	}
-}
-
-func TestLRUPolicy_ShouldEvict(t *testing.T) {
+func TestLRUPolicy_Set(t *testing.T) {
 	policy := NewLRUPolicy(2)
 
-	// 空策略不应该需要淘汰
-	key, shouldEvict := policy.ShouldEvict()
-	if shouldEvict {
-		t.Error("Empty policy should not need eviction")
+	policy.Set("key1")
+	policy.Set("key2")
+
+	if policy.Size() != 2 {
+		t.Errorf("Expected size 2, got %d", policy.Size())
 	}
 
-	policy.OnAdd("key1")
-	policy.OnAdd("key2")
+	policy.Set("key3") // 应该淘汰一个
 
-	// 达到容量后应该需要淘汰
-	key, shouldEvict = policy.ShouldEvict()
-	if !shouldEvict {
-		t.Error("Full policy should need eviction")
-	}
-	if key != "key1" {
-		t.Errorf("Expected key1 to be evicted, got %s", key)
+	if policy.Size() != 2 {
+		t.Error("Size should remain at capacity")
 	}
 }
 
-func TestLRUPolicy_SetMaxSize(t *testing.T) {
+func TestLRUPolicy_Delete(t *testing.T) {
 	policy := NewLRUPolicy(3)
 
-	policy.OnAdd("key1")
-	policy.OnAdd("key2")
-	policy.OnAdd("key3")
+	policy.Access("key1")
+	policy.Access("key2")
 
-	// 减少容量
-	policy.SetMaxSize(2)
-
-	if policy.Len() != 2 {
-		t.Errorf("Expected length 2 after resizing, got %d", policy.Len())
+	if !policy.Contains("key1") {
+		t.Error("key1 should exist")
 	}
 
-	// 应该保留最新的两个元素
-	keys := policy.Keys()
-	if len(keys) != 2 {
-		t.Errorf("Expected 2 keys, got %d", len(keys))
+	policy.Delete("key1")
+
+	if policy.Contains("key1") {
+		t.Error("key1 should be deleted")
+	}
+
+	if policy.Size() != 1 {
+		t.Errorf("Expected size 1 after deletion, got %d", policy.Size())
+	}
+
+	// 删除不存在的键
+	policy.Delete("nonexistent")
+	if policy.Size() != 1 {
+		t.Error("Deleting non-existent key should not change size")
+	}
+}
+
+func TestLRUPolicy_Evict(t *testing.T) {
+	policy := NewLRUPolicy(3)
+
+	// 添加一些键
+	policy.Access("key1")
+	policy.Access("key2")
+	policy.Access("key3")
+
+	// 重新访问 key1 使其成为最新
+	policy.Access("key1")
+
+	// 淘汰应该移除最旧的键 (key2)
+	evicted := policy.Evict()
+	if evicted != "key2" {
+		t.Errorf("Expected to evict 'key2', got '%s'", evicted)
+	}
+
+	if policy.Contains("key2") {
+		t.Error("key2 should be evicted")
+	}
+
+	if !policy.Contains("key1") && !policy.Contains("key3") {
+		t.Error("key1 and key3 should still exist")
 	}
 }
 
 func TestLRUPolicy_Keys(t *testing.T) {
 	policy := NewLRUPolicy(3)
 
-	policy.OnAdd("key1")
-	policy.OnAdd("key2")
-	policy.OnAdd("key3")
+	policy.Access("key1")
+	policy.Access("key2")
+	policy.Access("key3")
 
-	// 访问 key1，改变顺序
-	policy.OnAccess("key1")
+	// 重新访问 key1
+	policy.Access("key1")
 
 	keys := policy.Keys()
-	expected := []string{"key1", "key3", "key2"} // 从新到旧
-
 	if len(keys) != 3 {
 		t.Errorf("Expected 3 keys, got %d", len(keys))
 	}
 
-	for i, expectedKey := range expected {
-		if i >= len(keys) || keys[i] != expectedKey {
-			t.Errorf("Expected key %s at position %d, got %s", expectedKey, i, keys[i])
-		}
-	}
-}
-
-func TestLRUPolicy_Clear(t *testing.T) {
-	policy := NewLRUPolicy(3)
-
-	policy.OnAdd("key1")
-	policy.OnAdd("key2")
-
-	policy.Clear()
-
-	if policy.Len() != 0 {
-		t.Errorf("Expected length 0 after clear, got %d", policy.Len())
+	// 最新的键应该在前面
+	if keys[0] != "key1" {
+		t.Errorf("Expected first key to be 'key1', got '%s'", keys[0])
 	}
 
-	if policy.Contains("key1") || policy.Contains("key2") {
-		t.Error("Expected no keys to exist after clear")
+	// 最旧的键应该在后面
+	if keys[2] != "key2" {
+		t.Errorf("Expected last key to be 'key2', got '%s'", keys[2])
 	}
 }
 
 func TestLRUPolicy_Contains(t *testing.T) {
 	policy := NewLRUPolicy(3)
 
-	if policy.Contains("nonexistent") {
-		t.Error("Expected nonexistent key to not exist")
+	if policy.Contains("key1") {
+		t.Error("Empty policy should not contain any keys")
 	}
 
-	policy.OnAdd("key1")
-
+	policy.Access("key1")
 	if !policy.Contains("key1") {
-		t.Error("Expected key1 to exist")
+		t.Error("Policy should contain key1 after access")
 	}
 }
 
-// 基准测试
-func BenchmarkLRUPolicy_OnAccess(b *testing.B) {
+func TestLRUPolicy_UpdateCapacity(t *testing.T) {
+	policy := NewLRUPolicy(2)
+
+	policy.Access("key1")
+	policy.Access("key2")
+
+	// 增加容量
+	policy.UpdateCapacity(3)
+	policy.Access("key3")
+
+	if policy.Size() != 3 {
+		t.Errorf("Expected size 3 after capacity increase, got %d", policy.Size())
+	}
+
+	// 减少容量
+	policy.UpdateCapacity(1)
+
+	if policy.Size() != 1 {
+		t.Errorf("Expected size 1 after capacity decrease, got %d", policy.Size())
+	}
+}
+
+func TestLRUPolicy_Clear(t *testing.T) {
+	policy := NewLRUPolicy(3)
+
+	policy.Access("key1")
+	policy.Access("key2")
+	policy.Access("key3")
+
+	if policy.Size() != 3 {
+		t.Errorf("Expected size 3, got %d", policy.Size())
+	}
+
+	policy.Clear()
+
+	if policy.Size() != 0 {
+		t.Errorf("Expected size 0 after clear, got %d", policy.Size())
+	}
+
+	if policy.Contains("key1") || policy.Contains("key2") || policy.Contains("key3") {
+		t.Error("No keys should exist after clear")
+	}
+}
+
+func TestLRUPolicy_ConcurrentAccess(t *testing.T) {
+	policy := NewLRUPolicy(10)
+	var wg sync.WaitGroup
+
+	// 并发访问
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			policy.Access(string(rune(i)))
+		}(i)
+	}
+
+	wg.Wait()
+
+	if policy.Size() != 10 {
+		t.Errorf("Expected size 10 (capacity), got %d", policy.Size())
+	}
+}
+
+func BenchmarkLRUPolicy_Access(b *testing.B) {
 	policy := NewLRUPolicy(1000)
-
-	// 预填充
-	for i := 0; i < 1000; i++ {
-		policy.OnAdd("key" + string(rune(i)))
-	}
-
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
-		policy.OnAccess("key500")
+		policy.Access("key")
 	}
 }
 
-func BenchmarkLRUPolicy_OnAdd(b *testing.B) {
-	policy := NewLRUPolicy(10000)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		policy.OnAdd("key" + string(rune(i)))
-	}
-}
-
-func BenchmarkLRUPolicy_ConcurrentOperations(b *testing.B) {
+func BenchmarkLRUPolicy_Contains(b *testing.B) {
 	policy := NewLRUPolicy(1000)
-
+	policy.Access("key")
 	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		i := 0
-		for pb.Next() {
-			key := "key" + string(rune(i%1000))
-			policy.OnAdd(key)
-			policy.OnAccess(key)
-			i++
-		}
-	})
+
+	for i := 0; i < b.N; i++ {
+		policy.Contains("key")
+	}
 }

@@ -1,124 +1,81 @@
 package interfaces
 
-import (
-	"time"
+import "time"
 
-	"github.com/scache/types"
-)
-
-// 重新导出核心类型
-type (
-	// CacheItem 缓存项
-	CacheItem = types.CacheItem
-	// CacheStats 缓存统计信息
-	CacheStats = types.CacheStats
-	// CacheConfig 缓存配置
-	CacheConfig = types.CacheConfig
-	// CacheShard 缓存分片
-	CacheShard = types.CacheShard
-	// ManagerStats 管理器统计信息
-	ManagerStats = types.ManagerStats
-	// ErrorInfo 错误信息
-	ErrorInfo = types.ErrorInfo
-	// ValidationResult 验证结果
-	ValidationResult = types.ValidationResult
-	// HealthStatus 健康状态
-	HealthStatus = types.HealthStatus
-)
-
-// Cache 缓存接口
+// Cache 定义缓存接口
 type Cache interface {
-	// 基本操作
-	Set(key string, value interface{}) error
-	SetWithTTL(key string, value interface{}, ttl time.Duration) error
+	// Set 设置缓存项
+	Set(key string, value interface{}, ttl time.Duration) error
+
+	// Get 获取缓存项
 	Get(key string) (interface{}, bool)
+
+	// Delete 删除缓存项
 	Delete(key string) bool
+
+	// Exists 检查缓存项是否存在
 	Exists(key string) bool
-	Clear() error
-	Close() error
 
-	// 批量操作
-	SetBatch(items map[string]interface{}) error
-	GetBatch(keys []string) map[string]interface{}
-	DeleteBatch(keys []string) map[string]bool
+	// Flush 清空所有缓存项
+	Flush()
 
-	// 状态查询
+	// Size 获取缓存项数量
 	Size() int
-	Keys() []string
+
+	// Stats 获取缓存统计信息
 	Stats() CacheStats
+}
+
+// CacheStats 缓存统计信息
+type CacheStats struct {
+	// 命中次数
+	Hits int64
+
+	// 未命中次数
+	Misses int64
+
+	// 设置次数
+	Sets int64
+
+	// 删除次数
+	Deletes int64
+
+	// 当前缓存项数量
+	Size int
+
+	// 最大容量
+	MaxSize int
+
+	// 命中率
+	HitRate float64
 }
 
 // EvictionPolicy 淘汰策略接口
 type EvictionPolicy interface {
-	// 基本操作
-	OnAccess(key string)
-	OnAdd(key string)
-	OnRemove(key string)
-	ShouldEvict() (string, bool)
-	SetMaxSize(size int)
+	// Access 当访问 key 时调用
+	Access(key string)
+
+	// Set 当设置新 key 时调用
+	Set(key string)
+
+	// Delete 当删除 key 时调用
+	Delete(key string)
+
+	// Evict 获取需要淘汰的 key
+	Evict() string
+
+	// Size 获取当前策略状态
+	Size() int
+
+	// Clear 清空所有数据
 	Clear()
 
-	// 状态查询
-	Len() int
-	Keys() []string
+	// Contains 检查 key 是否存在
 	Contains(key string) bool
-}
 
-// Manager 缓存管理器接口
-type Manager interface {
-	// 缓存管理
-	Register(name string, cache Cache) error
-	Get(name string) (Cache, error)
-	Remove(name string) error
-	List() []string
-	Clear() error
-	Close() error
+	// Keys 获取所有 key（按最近使用时间排序）
+	Keys() []string
 
-	// 状态查询
-	Stats() map[string]CacheStats
-	Size() int
-	Exists(name string) bool
-}
-
-// Serializer 序列化接口
-type Serializer interface {
-	// 基本序列化
-	Serialize(value interface{}) ([]byte, error)
-	Deserialize(data []byte, target interface{}) error
-
-	// 类型支持
-	SupportType(value interface{}) bool
-	SupportedContentTypes() []string
-
-	// 配置
-	Configure(config map[string]interface{}) error
-	GetConfig() map[string]interface{}
-}
-
-// EventHandler 事件处理器接口
-type EventHandler interface {
-	Handle(event *types.CacheEvent) error
-	ShouldHandle(eventType string) bool
-	GetName() string
-}
-
-// Validator 配置验证器接口
-type Validator interface {
-	Validate(config interface{}) ValidationResult
-	GetSupportedTypes() []string
-}
-
-// HealthChecker 健康检查器接口
-type HealthChecker interface {
-	Check() *types.HealthCheck
-	GetName() string
-	IsEnabled() bool
-}
-
-// MetricsCollector 指标收集器接口
-type MetricsCollector interface {
-	Collect() *types.Metrics
-	Start() error
-	Stop() error
-	IsRunning() bool
+	// UpdateCapacity 更新容量限制
+	UpdateCapacity(newCapacity int)
 }

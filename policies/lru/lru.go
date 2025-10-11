@@ -4,67 +4,65 @@ import (
 	"container/list"
 	"sync"
 
-	"github.com/scache/interfaces"
+	"scache/constants"
+	"scache/interfaces"
 )
 
-// LRUPolicy LRU (Least Recently Used) 淘汰策略
-type LRUPolicy struct {
-	capacity int
-	cache    map[string]*list.Element
-	list     *list.List
-	lock     sync.RWMutex
+// lruPolicy LRU 淘汰策略实现
+type lruPolicy struct {
+	capacity int                      // 容量限制
+	cache    map[string]*list.Element // 键到链表节点的映射
+	list     *list.List               // 双向链表
+	mu       sync.RWMutex             // 读写锁
 }
 
-// entry LRU 缓存条目
-type entry struct {
-	key   string
-	value interface{}
+// lruNode LRU 链表节点
+type lruNode struct {
+	key string
 }
 
-// NewLRUPolicy 创建新的 LRU 策略
-func NewLRUPolicy(capacity int) *LRUPolicy {
-	return &LRUPolicy{
+// NewLRUPolicy 创建 LRU 策略
+func NewLRUPolicy(capacity int) interfaces.EvictionPolicy {
+	if capacity <= constants.DefaultExpiration {
+		capacity = constants.DefaultLRUCapacity // 默认容量
+	}
+
+	return &lruPolicy{
 		capacity: capacity,
 		cache:    make(map[string]*list.Element),
 		list:     list.New(),
 	}
 }
 
-// OnAccess 当缓存项被访问时调用
-func (l *LRUPolicy) OnAccess(key string) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
+// Access 当访问 key 时调用
+func (l *lruPolicy) Access(key string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
 	if elem, exists := l.cache[key]; exists {
+		// 如果 key 存在，移动到链表头部
 		l.list.MoveToFront(elem)
+	} else {
+		// 如果 key 不存在，添加到链表头部
+		elem := l.list.PushFront(&lruNode{key: key})
+		l.cache[key] = elem
+
+		// 检查容量限制
+		if l.list.Len() > l.capacity {
+			l.evictInternal()
+		}
 	}
 }
 
-// OnAdd 当新缓存项被添加时调用
-func (l *LRUPolicy) OnAdd(key string) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-
-	// 如果键已存在，更新它
-	if elem, exists := l.cache[key]; exists {
-		l.list.MoveToFront(elem)
-		return
-	}
-
-	// 添加新元素到前面
-	elem := l.list.PushFront(&entry{key: key})
-	l.cache[key] = elem
-
-	// 如果超出容量，移除最旧的元素
-	if l.list.Len() > l.capacity {
-		l.removeOldest()
-	}
+// Set 当设置新 key 时调用
+func (l *lruPolicy) Set(key string) {
+	l.Access(key) // LRU 策略中，Set 和 Access 处理相同
 }
 
-// OnRemove 当缓存项被移除时调用
-func (l *LRUPolicy) OnRemove(key string) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
+// Delete 当删除 key 时调用
+func (l *lruPolicy) Delete(key string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
 	if elem, exists := l.cache[key]; exists {
 		l.list.Remove(elem)
@@ -72,78 +70,85 @@ func (l *LRUPolicy) OnRemove(key string) {
 	}
 }
 
-// ShouldEvict 判断是否需要淘汰缓存项，返回要淘汰的键
-func (l *LRUPolicy) ShouldEvict() (string, bool) {
-	l.lock.RLock()
-	defer l.lock.RUnlock()
+// Evict 获取需要淘汰的 key
+func (l *lruPolicy) Evict() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
-	if l.list.Len() >= l.capacity {
-		if elem := l.list.Back(); elem != nil {
-			entry := elem.Value.(*entry)
-			return entry.key, true
-		}
-	}
-	return "", false
+	return l.evictInternal()
 }
 
-// SetMaxSize 设置最大容量
-func (l *LRUPolicy) SetMaxSize(size int) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-
-	l.capacity = size
-
-	// 如果当前大小超过新容量，移除多余的元素
-	for l.list.Len() > l.capacity {
-		l.removeOldest()
+// evictInternal 内部淘汰方法（调用时需要持有锁）
+func (l *lruPolicy) evictInternal() string {
+	if l.list.Len() == constants.DefaultExpiration {
+		return ""
 	}
-}
 
-// removeOldest 移除最旧的元素（内部方法，调用时需要持有锁）
-func (l *LRUPolicy) removeOldest() {
-	if elem := l.list.Back(); elem != nil {
-		entry := elem.Value.(*entry)
+	// 获取链表尾部节点（最少使用的）
+	elem := l.list.Back()
+	if elem != nil {
+		node := elem.Value.(*lruNode)
 		l.list.Remove(elem)
-		delete(l.cache, entry.key)
+		delete(l.cache, node.key)
+		return node.key
 	}
+
+	return ""
 }
 
-// Len 返回当前缓存项数量
-func (l *LRUPolicy) Len() int {
-	l.lock.RLock()
-	defer l.lock.RUnlock()
+// Size 获取当前策略状态
+func (l *lruPolicy) Size() int {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
 	return l.list.Len()
 }
 
-// Keys 返回所有键，从新到旧排序
-func (l *LRUPolicy) Keys() []string {
-	l.lock.RLock()
-	defer l.lock.RUnlock()
+// Keys 获取所有 key（按最近使用时间排序，最新的在前）
+func (l *lruPolicy) Keys() []string {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
 
 	keys := make([]string, 0, l.list.Len())
 	for elem := l.list.Front(); elem != nil; elem = elem.Next() {
-		entry := elem.Value.(*entry)
-		keys = append(keys, entry.key)
+		node := elem.Value.(*lruNode)
+		keys = append(keys, node.key)
 	}
+
 	return keys
 }
 
-// Contains 检查是否包含指定键
-func (l *LRUPolicy) Contains(key string) bool {
-	l.lock.RLock()
-	defer l.lock.RUnlock()
+// Contains 检查 key 是否存在
+func (l *lruPolicy) Contains(key string) bool {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
 	_, exists := l.cache[key]
 	return exists
 }
 
-// Clear 清空所有缓存项
-func (l *LRUPolicy) Clear() {
-	l.lock.Lock()
-	defer l.lock.Unlock()
+// UpdateCapacity 更新容量限制
+func (l *lruPolicy) UpdateCapacity(newCapacity int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
-	l.cache = make(map[string]*list.Element)
-	l.list = list.New()
+	if newCapacity <= constants.DefaultExpiration {
+		return
+	}
+
+	l.capacity = newCapacity
+
+	// 如果当前数量超过新容量，淘汰多余的项
+	for l.list.Len() > l.capacity {
+		l.evictInternal()
+	}
 }
 
-// 确保 LRUPolicy 实现了 EvictionPolicy 接口
-var _ interfaces.EvictionPolicy = (*LRUPolicy)(nil)
+// Clear 清空所有数据
+func (l *lruPolicy) Clear() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.cache = make(map[string]*list.Element)
+	l.list.Init()
+}

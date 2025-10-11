@@ -2,90 +2,71 @@ package constants
 
 import "time"
 
-// 缓存默认配置常量
+// 默认配置常量
 const (
-	// DefaultMaxSize 默认最大缓存项数量
-	DefaultMaxSize = 10000
-	// DefaultShards 默认分片数量
-	DefaultShards = 16
+	// DefaultMaxSize 默认最大容量
+	DefaultMaxSize = 0 // 0 表示无限制
+
+	// DefaultExpiration 默认过期时间
+	DefaultExpiration = 0 // 0 表示永不过期
+
 	// DefaultCleanupInterval 默认清理间隔
 	DefaultCleanupInterval = 10 * time.Minute
-	// DefaultTTL 默认TTL（0表示永不过期）
-	DefaultTTL = 0
+
+	// DefaultInitialCapacity 默认初始容量
+	DefaultInitialCapacity = 16
+
+	// DefaultStatsEnabled 默认是否启用统计
+	DefaultStatsEnabled = true
 )
 
-// 缓存策略常量
+// LRU策略常量
 const (
-	// LRUStrategy LRU淘汰策略
-	LRUStrategy = "lru"
-	// LFUStrategy LFU淘汰策略
-	LFUStrategy = "lfu"
-	// FIFOStrategy FIFO淘汰策略
-	FIFOStrategy = "fifo"
+	// DefaultLRUCapacity 默认LRU容量
+	DefaultLRUCapacity = 100
 )
 
-// 全局缓存常量
+// 时间相关常量
 const (
-	// DefaultCacheName 默认缓存名称
-	DefaultCacheName = "default"
-	// ManagerTimeout 管理器操作超时时间
-	ManagerTimeout = 30 * time.Second
+	// Second 秒
+	Second = time.Second
+
+	// Minute 分钟
+	Minute = time.Minute
+
+	// Hour 小时
+	Hour = time.Hour
+
+	// Day 天
+	Day = 24 * time.Hour
+
+	// Week 周
+	Week = 7 * Day
 )
 
-// 性能相关常量
+// 缓存状态常量
 const (
-	// MaxKeyLength 最大键长度
-	MaxKeyLength = 256
-	// MinKeyLength 最小键长度
-	MinKeyLength = 1
-	// MaxValueSize 最大值大小（字节）
-	MaxValueSize = 10 * 1024 * 1024 // 10MB
+	// StatusActive 缓存活跃状态
+	StatusActive = "active"
+
+	// StatusExpired 缓存过期状态
+	StatusExpired = "expired"
+
+	// StatusEvicted 缓存被淘汰状态
+	StatusEvicted = "evicted"
 )
 
 // 错误消息常量
 const (
-	// ErrCacheNotFound 缓存未找到错误
-	ErrCacheNotFound = "cache not found"
-	// ErrInvalidCacheName 无效缓存名称错误
-	ErrInvalidCacheName = "invalid cache name"
-	// ErrCacheAlreadyExists 缓存已存在错误
-	ErrCacheAlreadyExists = "cache already exists"
-	// ErrInvalidStrategy 无效策略错误
-	ErrInvalidStrategy = "invalid eviction strategy"
-	// ErrKeyNotFound 键未找到错误
-	ErrKeyNotFound = "key not found"
-	// ErrKeyTooLong 键过长错误
-	ErrKeyTooLong = "key too long"
-	// ErrKeyEmpty 键为空错误
-	ErrKeyEmpty = "key empty"
-	// ErrValueTooLarge 值过大错误
-	ErrValueTooLarge = "value too large"
-	// ErrCacheClosed 缓存已关闭错误
-	ErrCacheClosed = "cache is closed"
-)
+	// ErrKeyEmpty 键为空的错误
+	ErrKeyEmpty = "cache key cannot be empty"
 
-// 日志相关常量
-const (
-	// LogPrefixCache 缓存日志前缀
-	LogPrefixCache = "[SCache]"
-	// LogPrefixManager 管理器日志前缀
-	LogPrefixManager = "[SCache-Manager]"
-	// LogPrefixGlobal 全局缓存日志前缀
-	LogPrefixGlobal = "[SCache-Global]"
-)
+	// ErrValueNil 值为nil的错误
+	ErrValueNil = "cache value cannot be nil"
 
-// 统计相关常量
-const (
-	// StatsUpdateInterval 统计信息更新间隔
-	StatsUpdateInterval = time.Second
-	// HitRateThreshold 命中率阈值
-	HitRateThreshold = 0.8
-)
+	// ErrCapacityInvalid 容量无效的错误
+	ErrCapacityInvalid = "cache capacity must be positive"
 
-// 序列化常量
-const (
-	// JSONEncoding JSON编码
-	JSONEncoding = "json"
-	// GobEncoding Gob编码
-	GobEncoding = "gob"
+	// ErrTTLInvalid TTL无效的错误
+	ErrTTLInvalid = "TTL must be non-negative"
 )

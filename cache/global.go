@@ -3,125 +3,140 @@ package cache
 import (
 	"sync"
 	"time"
+
+	"scache/interfaces"
+	"scache/types"
 )
 
 var (
-	// 全局便捷函数使用管理器的单例
-	managerInstance = GetGlobalManager()
+	// globalCache 全局缓存实例
+	globalCache interfaces.Cache
+
+	// globalOnce 确保全局缓存只初始化一次
+	globalOnce sync.Once
+
+	// globalMu 保护全局缓存的访问
+	globalMu sync.RWMutex
 )
 
-// Register 注册全局缓存
-func Register(name string, c Cache) error {
-	return managerInstance.Register(name, c)
+// initGlobalCache 初始化全局缓存
+func initGlobalCache() {
+	globalCache = NewCache(
+		types.WithDefaultExpiration(time.Hour),
+		types.WithCleanupInterval(time.Minute*10),
+		types.WithMaxSize(10000),
+		types.WithStats(true),
+		types.WithInitialCapacity(128),
+	)
 }
 
-// RegisterLRU 注册 LRU 缓存
-func RegisterLRU(name string, maxSize int, opts ...Option) error {
-	allOpts := append([]Option{WithMaxSize(maxSize), WithEvictionPolicy("lru")}, opts...)
-	c := New(allOpts...)
-	return managerInstance.Register(name, c)
+// GetGlobalCache 获取全局缓存实例
+func GetGlobalCache() interfaces.Cache {
+	globalOnce.Do(initGlobalCache)
+	return globalCache
 }
 
-// RegisterLFU 注册 LFU 缓存
-func RegisterLFU(name string, maxSize int, opts ...Option) error {
-	allOpts := append([]Option{WithMaxSize(maxSize), WithEvictionPolicy("lfu")}, opts...)
-	c := New(allOpts...)
-	return managerInstance.Register(name, c)
+// Set 设置全局缓存项
+func Set(key string, value interface{}, ttl ...time.Duration) error {
+	var expiration time.Duration
+	if len(ttl) > 0 {
+		expiration = ttl[0]
+	}
+
+	globalMu.Lock()
+	defer globalMu.Unlock()
+
+	return GetGlobalCache().Set(key, value, expiration)
 }
 
-// RegisterFIFO 注册 FIFO 缓存
-func RegisterFIFO(name string, maxSize int, opts ...Option) error {
-	allOpts := append([]Option{WithMaxSize(maxSize), WithEvictionPolicy("fifo")}, opts...)
-	c := New(allOpts...)
-	return managerInstance.Register(name, c)
+// Get 获取全局缓存项
+func Get(key string) (interface{}, bool) {
+	globalMu.RLock()
+	defer globalMu.RUnlock()
+
+	return GetGlobalCache().Get(key)
 }
 
-// Get 获取全局缓存
-func Get(name string) (Cache, error) {
-	return managerInstance.Get(name)
+// Delete 删除全局缓存项
+func Delete(key string) bool {
+	globalMu.Lock()
+	defer globalMu.Unlock()
+
+	return GetGlobalCache().Delete(key)
 }
 
-// GetOrDefault 获取缓存，如果不存在则创建默认缓存
-func GetOrDefault(name string, opts ...Option) Cache {
-	return managerInstance.GetOrDefault(name, opts...)
+// Exists 检查全局缓存项是否存在
+func Exists(key string) bool {
+	globalMu.RLock()
+	defer globalMu.RUnlock()
+
+	return GetGlobalCache().Exists(key)
 }
 
-// Remove 移除全局缓存
-func Remove(name string) error {
-	return managerInstance.Remove(name)
+// Flush 清空全局缓存
+func Flush() {
+	globalMu.Lock()
+	defer globalMu.Unlock()
+
+	GetGlobalCache().Flush()
 }
 
-// List 列出所有全局缓存名称
-func List() []string {
-	return managerInstance.List()
-}
-
-// Clear 清空所有全局缓存
-func Clear() error {
-	return managerInstance.Clear()
-}
-
-// Close 关闭所有全局缓存
-func Close() error {
-	return managerInstance.Close()
-}
-
-// Stats 获取所有全局缓存的统计信息
-func Stats() map[string]CacheStats {
-	return managerInstance.Stats()
-}
-
-// Size 获取所有全局缓存的总大小
+// Size 获取全局缓存大小
 func Size() int {
-	return managerInstance.Size()
+	globalMu.RLock()
+	defer globalMu.RUnlock()
+
+	return GetGlobalCache().Size()
 }
 
-// Exists 检查全局缓存是否存在
-func Exists(name string) bool {
-	return managerInstance.Exists(name)
+// Stats 获取全局缓存统计
+func Stats() interfaces.CacheStats {
+	globalMu.RLock()
+	defer globalMu.RUnlock()
+
+	return GetGlobalCache().Stats()
 }
 
-// 默认缓存的便捷操作
-var (
-	defaultCacheOnce sync.Once
-	defaultCache     Cache
-)
+// Keys 获取全局缓存所有键
+func Keys() []string {
+	globalMu.RLock()
+	defer globalMu.RUnlock()
 
-// getDefaultCache 获取默认缓存实例
-func getDefaultCache() Cache {
-	defaultCacheOnce.Do(func() {
-		defaultCache = New()
-		Register("default", defaultCache)
-	})
-	return defaultCache
+	if cache, ok := GetGlobalCache().(*MemoryCache); ok {
+		return cache.Keys()
+	}
+	return nil
 }
 
-// Set 在默认缓存中设置键值
-func Set(key string, value interface{}) error {
-	return getDefaultCache().Set(key, value)
+// GetWithExpiration 获取全局缓存项和过期时间
+func GetWithExpiration(key string) (interface{}, time.Time, bool) {
+	globalMu.RLock()
+	defer globalMu.RUnlock()
+
+	if cache, ok := GetGlobalCache().(*MemoryCache); ok {
+		return cache.GetWithExpiration(key)
+	}
+	return nil, time.Time{}, false
 }
 
-// SetWithTTL 在默认缓存中设置带过期时间的键值
-func SetWithTTL(key string, value interface{}, ttl time.Duration) error {
-	return getDefaultCache().SetWithTTL(key, value, ttl)
+// ConfigureGlobalCache 配置全局缓存（在首次使用前调用）
+func ConfigureGlobalCache(opts ...types.CacheOption) {
+	globalMu.Lock()
+	defer globalMu.Unlock()
+
+	if globalCache == nil {
+		globalCache = NewCache(opts...)
+	}
 }
 
-// GetFromDefault 从默认缓存中获取值
-func GetFromDefault(key string) (interface{}, bool) {
-	return getDefaultCache().Get(key)
-}
+// CloseGlobalCache 关闭全局缓存
+func CloseGlobalCache() {
+	globalMu.Lock()
+	defer globalMu.Unlock()
 
-// DeleteFromDefault 从默认缓存中删除键
-func DeleteFromDefault(key string) bool {
-	return getDefaultCache().Delete(key)
-}
-
-// ExistsInDefault 检查默认缓存中是否存在键
-func ExistsInDefault(key string) bool {
-	return getDefaultCache().Exists(key)
-}
-
-// ClearDefault 清空默认缓存
-func ClearDefault() error {
-	return getDefaultCache().Clear()
+	if globalCache != nil {
+		if cache, ok := globalCache.(*MemoryCache); ok {
+			cache.Close()
+		}
+	}
 }
