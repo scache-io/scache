@@ -100,6 +100,28 @@ func (s *StringObject) Set(value string) {
 	s.UpdateAccess()
 }
 
+// StructObject 结构体对象实现（复用StringObject，增加JSON支持）
+type StructObject struct {
+	*StringObject
+}
+
+// NewStructObject 创建结构体对象
+func NewStructObject(data string, ttl time.Duration) *StructObject {
+	return &StructObject{
+		StringObject: NewStringObject(data, ttl),
+	}
+}
+
+// Data 返回JSON数据
+func (s *StructObject) Data() string {
+	return s.Value()
+}
+
+// Set 设置JSON数据
+func (s *StructObject) Set(data string) {
+	s.StringObject.Set(data)
+}
+
 // Size 返回对象大小（字节）
 func (s *StringObject) Size() int {
 	s.mu.RLock()

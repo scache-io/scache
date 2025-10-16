@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -74,8 +75,14 @@ func (c *LocalCache) Set(key string, value interface{}, ttl ...time.Duration) er
 		obj := types.NewHashObject(v, expiration)
 		return c.engine.Set(key, obj)
 	default:
-		// 其他类型转为字符串存储
-		obj := types.NewStringObject(fmt.Sprintf("%v", v), expiration)
+		// 其他类型转为JSON存储
+		jsonBytes, err := json.Marshal(v)
+		if err != nil {
+			// 如果序列化失败，降级为字符串存储
+			obj := types.NewStringObject(fmt.Sprintf("%v", v), expiration)
+			return c.engine.Set(key, obj)
+		}
+		obj := types.NewStringObject(string(jsonBytes), expiration)
 		return c.engine.Set(key, obj)
 	}
 }
@@ -86,7 +93,24 @@ func (c *LocalCache) Get(key string) (interface{}, bool) {
 	if !exists {
 		return nil, false
 	}
-	return obj, true
+
+	// 根据对象类型返回相应的值
+	switch v := obj.(type) {
+	case *types.StringObject:
+		// 尝试解析为JSON，如果不是则返回原始字符串
+		str := v.Value()
+		var result interface{}
+		if err := json.Unmarshal([]byte(str), &result); err == nil {
+			return result, true
+		}
+		return str, true
+	case *types.ListObject:
+		return v.Values(), true
+	case *types.HashObject:
+		return v.Fields(), true
+	default:
+		return obj, true
+	}
 }
 
 // SetList 设置列表值

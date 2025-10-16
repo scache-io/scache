@@ -9,6 +9,7 @@ const (
 	DataTypeString DataType = "string"
 	DataTypeList   DataType = "list"
 	DataTypeHash   DataType = "hash"
+	DataTypeStruct DataType = "struct"
 )
 
 // DataObject 通用数据对象接口
@@ -45,6 +46,13 @@ type HashObject interface {
 	Set(field string, value interface{})
 	Delete(field string) bool
 	Len() int
+}
+
+// StructObject 结构体对象接口
+type StructObject interface {
+	DataObject
+	Data() string
+	Set(data string)
 }
 
 // StorageEngine 存储引擎接口
