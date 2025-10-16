@@ -8,69 +8,70 @@ import (
 	"scache/interfaces"
 )
 
-// lruPolicy LRU 淘汰策略实现
+// 本包实现了LRU（Least Recently Used）缓存淘汰策略
+
+// lruPolicy LRU淘汰策略的实现结构体
 type lruPolicy struct {
-	capacity int                      // 容量限制
-	cache    map[string]*list.Element // 键到链表节点的映射
-	list     *list.List               // 双向链表
-	mu       sync.RWMutex             // 读写锁
+	capacity int                      // 缓存容量
+	cache    map[string]*list.Element // 键到链表节点的映射，用于O(1)查找
+	list     *list.List               // 双向链表，头部为最近使用，尾部为最久未使用
+	mu       sync.RWMutex             // 读写锁，保护并发访问
 }
 
-// lruNode LRU 链表节点
+// lruNode 链表中存储的节点数据
 type lruNode struct {
-	key string
+	key string // 缓存键
 }
 
-// NewLRUPolicy 创建 LRU 策略
+// NewLRUPolicy 创建一个新的LRU淘汰策略实例
+// capacity: 缓存容量，如果小于等于0则使用默认值
 func NewLRUPolicy(capacity int) interfaces.EvictionPolicy {
-	if capacity <= constants.DefaultExpiration {
-		capacity = constants.DefaultLRUCapacity // 默认容量
+	if capacity <= 0 {
+		capacity = constants.DefaultLRUCapacity // 使用默认容量
 	}
 
 	return &lruPolicy{
 		capacity: capacity,
-		cache:    make(map[string]*list.Element),
-		list:     list.New(),
+		cache:    make(map[string]*list.Element), // 初始化映射表
+		list:     list.New(),                     // 初始化双向链表
 	}
 }
 
-// Access 当访问 key 时调用
+// Access 访问指定键，将其标记为最近使用
+// 如果键不存在，则添加到缓存；如果超过容量，则淘汰最久未使用的条目
 func (l *lruPolicy) Access(key string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	if elem, exists := l.cache[key]; exists {
-		// 如果 key 存在，移动到链表头部
-		l.list.MoveToFront(elem)
+		l.list.MoveToFront(elem) // 移动到链表头部，标记为最近使用
 	} else {
-		// 如果 key 不存在，添加到链表头部
-		elem := l.list.PushFront(&lruNode{key: key})
-		l.cache[key] = elem
+		elem := l.list.PushFront(&lruNode{key: key}) // 添加新节点到头部
+		l.cache[key] = elem                          // 建立映射关系
 
-		// 检查容量限制
 		if l.list.Len() > l.capacity {
-			l.evictInternal()
+			l.evictInternal() // 超过容量时淘汰最久未使用的条目
 		}
 	}
 }
 
-// Set 当设置新 key 时调用
+// Set 设置指定键的值，等同于Access操作
 func (l *lruPolicy) Set(key string) {
-	l.Access(key) // LRU 策略中，Set 和 Access 处理相同
+	l.Access(key)
 }
 
-// Delete 当删除 key 时调用
+// Delete 从缓存中删除指定键的条目
 func (l *lruPolicy) Delete(key string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	if elem, exists := l.cache[key]; exists {
-		l.list.Remove(elem)
-		delete(l.cache, key)
+		l.list.Remove(elem)  // 从链表中移除节点
+		delete(l.cache, key) // 从映射表中删除键
 	}
 }
 
-// Evict 获取需要淘汰的 key
+// Evict 淘汰最久未使用的缓存条目，返回被淘汰的键
 func (l *lruPolicy) Evict() string {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -78,25 +79,24 @@ func (l *lruPolicy) Evict() string {
 	return l.evictInternal()
 }
 
-// evictInternal 内部淘汰方法（调用时需要持有锁）
+// evictInternal 内部淘汰方法，必须在持有锁的情况下调用
 func (l *lruPolicy) evictInternal() string {
-	if l.list.Len() == constants.DefaultExpiration {
-		return ""
+	if l.list.Len() == 0 {
+		return "" // 空缓存，无需淘汰
 	}
 
-	// 获取链表尾部节点（最少使用的）
-	elem := l.list.Back()
+	elem := l.list.Back() // 获取链表尾部元素（最久未使用）
 	if elem != nil {
 		node := elem.Value.(*lruNode)
-		l.list.Remove(elem)
-		delete(l.cache, node.key)
-		return node.key
+		l.list.Remove(elem)       // 从链表中移除
+		delete(l.cache, node.key) // 从映射表中删除
+		return node.key           // 返回被淘汰的键
 	}
 
 	return ""
 }
 
-// Size 获取当前策略状态
+// Size 返回当前缓存中的条目数量
 func (l *lruPolicy) Size() int {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
@@ -104,21 +104,21 @@ func (l *lruPolicy) Size() int {
 	return l.list.Len()
 }
 
-// Keys 获取所有 key（按最近使用时间排序，最新的在前）
+// Keys 返回缓存中所有键的列表，按最近使用顺序排列
 func (l *lruPolicy) Keys() []string {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
-	keys := make([]string, 0, l.list.Len())
+	keys := make([]string, 0, l.list.Len()) // 预分配切片容量
 	for elem := l.list.Front(); elem != nil; elem = elem.Next() {
 		node := elem.Value.(*lruNode)
-		keys = append(keys, node.key)
+		keys = append(keys, node.key) // 从头部开始遍历，添加到结果中
 	}
 
 	return keys
 }
 
-// Contains 检查 key 是否存在
+// Contains 检查指定键是否存在于缓存中
 func (l *lruPolicy) Contains(key string) bool {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
@@ -127,28 +127,28 @@ func (l *lruPolicy) Contains(key string) bool {
 	return exists
 }
 
-// UpdateCapacity 更新容量限制
+// UpdateCapacity 更新缓存容量，如果新容量小于当前条目数，则淘汰多余的条目
 func (l *lruPolicy) UpdateCapacity(newCapacity int) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if newCapacity <= constants.DefaultExpiration {
-		return
+	if newCapacity <= 0 {
+		return // 无效容量，忽略更新
 	}
 
 	l.capacity = newCapacity
 
-	// 如果当前数量超过新容量，淘汰多余的项
+	// 如果当前条目数超过新容量，持续淘汰直到符合容量限制
 	for l.list.Len() > l.capacity {
 		l.evictInternal()
 	}
 }
 
-// Clear 清空所有数据
+// Clear 清空缓存中的所有条目
 func (l *lruPolicy) Clear() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	l.cache = make(map[string]*list.Element)
-	l.list.Init()
+	l.cache = make(map[string]*list.Element) // 重新创建映射表
+	l.list.Init()                            // 重置链表
 }

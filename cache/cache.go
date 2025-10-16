@@ -1,338 +1,234 @@
 package cache
 
 import (
-	"errors"
-	"fmt"
-	"sync"
 	"time"
 
-	"scache/constants"
+	"scache/config"
 	"scache/interfaces"
-	"scache/policies/lru"
+	"scache/storage"
 	"scache/types"
 )
 
-// MemoryCache 内存缓存实现
-type MemoryCache struct {
-	mu          sync.RWMutex                // 读写锁
-	items       map[string]*types.CacheItem // 缓存数据
-	config      *types.CacheConfig          // 配置
-	stats       *types.CacheStats           // 统计信息
-	policy      interfaces.EvictionPolicy   // 淘汰策略
-	stopChan    chan struct{}               // 停止清理协程的通道
-	cleanupOnce sync.Once                   // 确保清理协程只启动一次
-}
-
-// NewCache 创建新的缓存实例
-func NewCache(opts ...types.CacheOption) interfaces.Cache {
-	config := types.DefaultCacheConfig()
-
-	// 应用配置选项
+// NewEngine 创建新的存储引擎实例
+func NewEngine(opts ...config.EngineOption) interfaces.StorageEngine {
+	// 创建配置
+	engineConfig := &storage.EngineConfig{}
 	for _, opt := range opts {
-		opt(config)
+		opt(engineConfig)
 	}
-
-	cache := &MemoryCache{
-		items:    make(map[string]*types.CacheItem, config.InitialCapacity),
-		config:   config,
-		stats:    &types.CacheStats{},
-		policy:   lru.NewLRUPolicy(config.MaxSize),
-		stopChan: make(chan struct{}),
-	}
-
-	// 启动清理协程 - 只有在有过期机制时才需要
-	if config.CleanupInterval > constants.DefaultExpiration && (config.DefaultExpiration > constants.DefaultExpiration) {
-		cache.startCleanup()
-	}
-
-	return cache
+	return storage.NewStorageEngine(engineConfig)
 }
 
-// Set 设置缓存项
-func (c *MemoryCache) Set(key string, value interface{}, ttl time.Duration) error {
-	if key == "" {
-		return errors.New("cache key cannot be empty")
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	// 计算过期时间
-	var expiresAt time.Time
-	if ttl > constants.DefaultExpiration {
-		expiresAt = time.Now().Add(ttl)
-	} else if c.config.DefaultExpiration > constants.DefaultExpiration {
-		expiresAt = time.Now().Add(c.config.DefaultExpiration)
-	}
-
-	// 创建或更新缓存项
-	now := time.Now()
-	item := &types.CacheItem{
-		Key:       key,
-		Value:     value,
-		ExpiresAt: expiresAt,
-		CreatedAt: now,
-		AccessAt:  now,
-		Hits:      constants.DefaultExpiration,
-	}
-
-	// 如果 key 已存在，更新访问次数
-	if oldItem, exists := c.items[key]; exists {
-		item.Hits = oldItem.Hits
-	}
-
-	c.items[key] = item
-
-	// 更新淘汰策略
-	c.policy.Set(key)
-
-	// 检查容量限制
-	if c.config.MaxSize > constants.DefaultExpiration && len(c.items) > c.config.MaxSize {
-		c.evict()
-	}
-
-	// 更新统计
-	if c.config.EnableStats {
-		c.stats.Set()
-	}
-
-	return nil
+// LocalCache 局部缓存封装
+type LocalCache struct {
+	engine interfaces.StorageEngine
 }
 
-// Get 获取缓存项
-func (c *MemoryCache) Get(key string) (interface{}, bool) {
-	if key == "" {
+// NewLocalCache 创建局部缓存实例
+func NewLocalCache(opts ...config.EngineOption) *LocalCache {
+	return &LocalCache{
+		engine: NewEngine(opts...),
+	}
+}
+
+// SetString 设置字符串值
+func (c *LocalCache) SetString(key, value string, ttl ...time.Duration) error {
+	var expiration time.Duration
+	if len(ttl) > 0 {
+		expiration = ttl[0]
+	}
+	obj := types.NewStringObject(value, expiration)
+	return c.engine.Set(key, obj)
+}
+
+// GetString 获取字符串值
+func (c *LocalCache) GetString(key string) (string, bool) {
+	obj, exists := c.engine.Get(key)
+	if !exists {
+		return "", false
+	}
+
+	if strObj, ok := obj.(*types.StringObject); ok {
+		return strObj.Value(), true
+	}
+	return "", false
+}
+
+// SetList 设置列表值
+func (c *LocalCache) SetList(key string, values []interface{}, ttl ...time.Duration) error {
+	var expiration time.Duration
+	if len(ttl) > 0 {
+		expiration = ttl[0]
+	}
+	obj := types.NewListObject(values, expiration)
+	return c.engine.Set(key, obj)
+}
+
+// GetList 获取列表值
+func (c *LocalCache) GetList(key string) ([]interface{}, bool) {
+	obj, exists := c.engine.Get(key)
+	if !exists {
 		return nil, false
 	}
 
-	c.mu.RLock()
-	item, exists := c.items[key]
-	c.mu.RUnlock()
+	if listObj, ok := obj.(*types.ListObject); ok {
+		return listObj.Values(), true
+	}
+	return nil, false
+}
 
+// SetHash 设置哈希值
+func (c *LocalCache) SetHash(key string, fields map[string]interface{}, ttl ...time.Duration) error {
+	var expiration time.Duration
+	if len(ttl) > 0 {
+		expiration = ttl[0]
+	}
+	obj := types.NewHashObject(fields, expiration)
+	return c.engine.Set(key, obj)
+}
+
+// GetHash 获取哈希值
+func (c *LocalCache) GetHash(key string) (map[string]interface{}, bool) {
+	obj, exists := c.engine.Get(key)
 	if !exists {
-		if c.config.EnableStats {
-			c.stats.Miss()
-		}
 		return nil, false
 	}
 
-	// 检查是否过期
-	if item.IsExpired() {
-		// 异步删除过期项
-		go c.Delete(key)
-		if c.config.EnableStats {
-			c.stats.Miss()
-		}
-		return nil, false
+	if hashObj, ok := obj.(*types.HashObject); ok {
+		return hashObj.Fields(), true
 	}
-
-	// 更新访问信息
-	c.mu.Lock()
-	item.AccessAt = time.Now()
-	item.Hits++
-	c.mu.Unlock()
-
-	// 更新淘汰策略
-	c.policy.Access(key)
-
-	// 更新统计
-	if c.config.EnableStats {
-		c.stats.Hit()
-	}
-
-	return item.Value, true
+	return nil, false
 }
 
-// Delete 删除缓存项
-func (c *MemoryCache) Delete(key string) bool {
-	if key == "" {
-		return false
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if _, exists := c.items[key]; exists {
-		delete(c.items, key)
-		c.policy.Delete(key)
-
-		if c.config.EnableStats {
-			c.stats.Delete()
-		}
-		return true
-	}
-
-	return false
+// Delete 删除键
+func (c *LocalCache) Delete(key string) bool {
+	return c.engine.Delete(key)
 }
 
-// Exists 检查缓存项是否存在
-func (c *MemoryCache) Exists(key string) bool {
-	if key == "" {
-		return false
-	}
-
-	c.mu.RLock()
-	item, exists := c.items[key]
-	c.mu.RUnlock()
-
-	if !exists {
-		return false
-	}
-
-	// 检查是否过期
-	if item.IsExpired() {
-		// 异步删除过期项
-		go c.Delete(key)
-		return false
-	}
-
-	return true
+// Exists 检查键是否存在
+func (c *LocalCache) Exists(key string) bool {
+	return c.engine.Exists(key)
 }
 
-// Flush 清空所有缓存项
-func (c *MemoryCache) Flush() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.items = make(map[string]*types.CacheItem, c.config.InitialCapacity)
-	c.policy.Clear()
-
-	// 重置统计信息
-	if c.config.EnableStats {
-		c.stats.Reset()
-	}
+// Keys 获取所有键
+func (c *LocalCache) Keys() []string {
+	return c.engine.Keys()
 }
 
-// Size 获取缓存项数量
-func (c *MemoryCache) Size() int {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	return len(c.items)
+// Flush 清空所有数据
+func (c *LocalCache) Flush() error {
+	return c.engine.Flush()
 }
 
-// Stats 获取缓存统计信息
-func (c *MemoryCache) Stats() interfaces.CacheStats {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	hits, misses, sets, deletes := c.stats.GetStats()
-
-	return interfaces.CacheStats{
-		Hits:    hits,
-		Misses:  misses,
-		Sets:    sets,
-		Deletes: deletes,
-		Size:    len(c.items),
-		MaxSize: c.config.MaxSize,
-		HitRate: c.stats.HitRate(),
-	}
+// Size 获取缓存大小
+func (c *LocalCache) Size() int {
+	return c.engine.Size()
 }
 
-// evict 淘汰一个缓存项
-func (c *MemoryCache) evict() {
-	if key := c.policy.Evict(); key != "" {
-		delete(c.items, key)
-	}
+// Expire 设置过期时间
+func (c *LocalCache) Expire(key string, ttl time.Duration) bool {
+	return c.engine.Expire(key, ttl)
 }
 
-// startCleanup 启动过期清理协程
-func (c *MemoryCache) startCleanup() {
-	c.cleanupOnce.Do(func() {
-		go func() {
-			ticker := time.NewTicker(c.config.CleanupInterval)
-			defer ticker.Stop()
-
-			for {
-				select {
-				case <-ticker.C:
-					c.cleanupExpired()
-				case <-c.stopChan:
-					return
-				}
-			}
-		}()
-	})
+// TTL 获取剩余生存时间
+func (c *LocalCache) TTL(key string) (time.Duration, bool) {
+	return c.engine.TTL(key)
 }
 
-// cleanupExpired 清理过期的缓存项
-func (c *MemoryCache) cleanupExpired() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	now := time.Now()
-	for key, item := range c.items {
-		if !item.ExpiresAt.IsZero() && now.After(item.ExpiresAt) {
-			delete(c.items, key)
-			c.policy.Delete(key)
-		}
-	}
+// Stats 获取统计信息
+func (c *LocalCache) Stats() interface{} {
+	return c.engine.Stats()
 }
 
-// Close 关闭缓存，停止清理协程
-func (c *MemoryCache) Close() {
-	close(c.stopChan)
+// GetEngine 获取底层引擎（用于高级操作）
+func (c *LocalCache) GetEngine() interfaces.StorageEngine {
+	return c.engine
 }
 
-// Keys 获取所有缓存键
-func (c *MemoryCache) Keys() []string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+// 全局缓存实例
+var globalCache *LocalCache
 
-	keys := make([]string, 0, len(c.items))
-	for key := range c.items {
-		keys = append(keys, key)
-	}
-	return keys
+// 初始化全局缓存
+func init() {
+	globalCache = NewLocalCache()
 }
 
-// GetWithExpiration 获取缓存项和过期时间
-func (c *MemoryCache) GetWithExpiration(key string) (interface{}, time.Time, bool) {
-	if key == "" {
-		return nil, time.Time{}, false
-	}
-
-	c.mu.RLock()
-	item, exists := c.items[key]
-	c.mu.RUnlock()
-
-	if !exists {
-		if c.config.EnableStats {
-			c.stats.Miss()
-		}
-		return nil, time.Time{}, false
-	}
-
-	// 检查是否过期
-	if item.IsExpired() {
-		// 异步删除过期项
-		go c.Delete(key)
-		if c.config.EnableStats {
-			c.stats.Miss()
-		}
-		return nil, time.Time{}, false
-	}
-
-	// 更新访问信息
-	c.mu.Lock()
-	item.AccessAt = time.Now()
-	item.Hits++
-	c.mu.Unlock()
-
-	// 更新淘汰策略
-	c.policy.Access(key)
-
-	// 更新统计
-	if c.config.EnableStats {
-		c.stats.Hit()
-	}
-
-	return item.Value, item.ExpiresAt, true
+// SetString 全局设置字符串值
+func SetString(key, value string, ttl ...time.Duration) error {
+	return globalCache.SetString(key, value, ttl...)
 }
 
-// String 返回缓存的字符串表示
-func (c *MemoryCache) String() string {
-	stats := c.Stats()
-	return fmt.Sprintf("Cache{Size: %d, Hits: %d, Misses: %d, HitRate: %.2f%%}",
-		stats.Size, stats.Hits, stats.Misses, stats.HitRate*100)
+// GetString 全局获取字符串值
+func GetString(key string) (string, bool) {
+	return globalCache.GetString(key)
+}
+
+// SetList 全局设置列表值
+func SetList(key string, values []interface{}, ttl ...time.Duration) error {
+	return globalCache.SetList(key, values, ttl...)
+}
+
+// GetList 全局获取列表值
+func GetList(key string) ([]interface{}, bool) {
+	return globalCache.GetList(key)
+}
+
+// SetHash 全局设置哈希值
+func SetHash(key string, fields map[string]interface{}, ttl ...time.Duration) error {
+	return globalCache.SetHash(key, fields, ttl...)
+}
+
+// GetHash 全局获取哈希值
+func GetHash(key string) (map[string]interface{}, bool) {
+	return globalCache.GetHash(key)
+}
+
+// Delete 全局删除键
+func Delete(key string) bool {
+	return globalCache.Delete(key)
+}
+
+// Exists 全局检查键是否存在
+func Exists(key string) bool {
+	return globalCache.Exists(key)
+}
+
+// Keys 全局获取所有键
+func Keys() []string {
+	return globalCache.Keys()
+}
+
+// Flush 全局清空所有数据
+func Flush() error {
+	return globalCache.Flush()
+}
+
+// Size 全局获取缓存大小
+func Size() int {
+	return globalCache.Size()
+}
+
+// Expire 全局设置过期时间
+func Expire(key string, ttl time.Duration) bool {
+	return globalCache.Expire(key, ttl)
+}
+
+// TTL 全局获取剩余生存时间
+func TTL(key string) (time.Duration, bool) {
+	return globalCache.TTL(key)
+}
+
+// Stats 全局获取统计信息
+func Stats() interface{} {
+	return globalCache.Stats()
+}
+
+// GetGlobalCache 获取全局缓存实例
+func GetGlobalCache() *LocalCache {
+	return globalCache
+}
+
+// InitGlobalCache 初始化全局缓存（可配置）
+func InitGlobalCache(opts ...config.EngineOption) {
+	globalCache = NewLocalCache(opts...)
 }

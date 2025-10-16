@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestNewLRUPolicy 测试LRU策略的创建
 func TestNewLRUPolicy(t *testing.T) {
 	policy := NewLRUPolicy(10)
 	if policy == nil {
@@ -12,6 +13,7 @@ func TestNewLRUPolicy(t *testing.T) {
 	}
 }
 
+// TestLRUPolicy_Access 测试LRU策略的访问功能
 func TestLRUPolicy_Access(t *testing.T) {
 	policy := NewLRUPolicy(3)
 
@@ -53,6 +55,7 @@ func TestLRUPolicy_Access(t *testing.T) {
 	}
 }
 
+// TestLRUPolicy_Set 测试LRU策略的设置功能
 func TestLRUPolicy_Set(t *testing.T) {
 	policy := NewLRUPolicy(2)
 
@@ -70,6 +73,7 @@ func TestLRUPolicy_Set(t *testing.T) {
 	}
 }
 
+// TestLRUPolicy_Delete 测试LRU策略的删除功能
 func TestLRUPolicy_Delete(t *testing.T) {
 	policy := NewLRUPolicy(3)
 
@@ -97,6 +101,7 @@ func TestLRUPolicy_Delete(t *testing.T) {
 	}
 }
 
+// TestLRUPolicy_Evict 测试LRU策略的淘汰功能
 func TestLRUPolicy_Evict(t *testing.T) {
 	policy := NewLRUPolicy(3)
 
@@ -123,6 +128,7 @@ func TestLRUPolicy_Evict(t *testing.T) {
 	}
 }
 
+// TestLRUPolicy_Keys 测试LRU策略的键列表功能
 func TestLRUPolicy_Keys(t *testing.T) {
 	policy := NewLRUPolicy(3)
 
@@ -149,6 +155,7 @@ func TestLRUPolicy_Keys(t *testing.T) {
 	}
 }
 
+// TestLRUPolicy_Contains 测试LRU策略的包含检查功能
 func TestLRUPolicy_Contains(t *testing.T) {
 	policy := NewLRUPolicy(3)
 
@@ -162,6 +169,7 @@ func TestLRUPolicy_Contains(t *testing.T) {
 	}
 }
 
+// TestLRUPolicy_UpdateCapacity 测试LRU策略的容量更新功能
 func TestLRUPolicy_UpdateCapacity(t *testing.T) {
 	policy := NewLRUPolicy(2)
 
@@ -184,6 +192,7 @@ func TestLRUPolicy_UpdateCapacity(t *testing.T) {
 	}
 }
 
+// TestLRUPolicy_Clear 测试LRU策略的清空功能
 func TestLRUPolicy_Clear(t *testing.T) {
 	policy := NewLRUPolicy(3)
 
@@ -206,6 +215,7 @@ func TestLRUPolicy_Clear(t *testing.T) {
 	}
 }
 
+// TestLRUPolicy_ConcurrentAccess 测试LRU策略的并发访问安全性
 func TestLRUPolicy_ConcurrentAccess(t *testing.T) {
 	policy := NewLRUPolicy(10)
 	var wg sync.WaitGroup
@@ -226,6 +236,7 @@ func TestLRUPolicy_ConcurrentAccess(t *testing.T) {
 	}
 }
 
+// BenchmarkLRUPolicy_Access 基准测试：LRU访问操作的性能
 func BenchmarkLRUPolicy_Access(b *testing.B) {
 	policy := NewLRUPolicy(1000)
 	b.ResetTimer()
@@ -235,6 +246,7 @@ func BenchmarkLRUPolicy_Access(b *testing.B) {
 	}
 }
 
+// BenchmarkLRUPolicy_Contains 基准测试：LRU包含检查操作的性能
 func BenchmarkLRUPolicy_Contains(b *testing.B) {
 	policy := NewLRUPolicy(1000)
 	policy.Access("key")

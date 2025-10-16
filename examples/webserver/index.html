@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>缓存Web服务</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 { color: #007bff; margin-bottom: 10px; }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        .card-header {
+            background: #007bff;
+            color: white;
+            padding: 15px 20px;
+            font-weight: bold;
+        }
+        .card-body { padding: 20px; }
+        .endpoint {
+            display: flex;
+            align-items: flex-start;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .method {
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-right: 15px;
+            min-width: 70px;
+            text-align: center;
+            font-size: 12px;
+        }
+        .method.post { background: #28a745; color: white; }
+        .method.get { background: #007bff; color: white; }
+        .method.delete { background: #dc3545; color: white; }
+        .endpoint-content { flex: 1; }
+        .endpoint-url { font-family: monospace; font-weight: bold; margin-bottom: 8px; }
+        pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value { font-size: 24px; font-weight: bold; color: #007bff; }
+        .stat-label { color: #6c757d; margin-top: 5px; }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover { background: #0056b3; }
+        .btn-small { padding: 4px 8px; font-size: 12px; }
+        .form-group { margin: 15px 0; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .result.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .result.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .tabs { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; }
+        .tab.active { border-bottom-color: #007bff; color: #007bff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 缓存Web服务</h1>
+            <p>基于Go缓存库的REST API示例服务 - 支持远程调用</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('api')">API接口</div>
+            <div class="tab" onclick="showTab('test')">在线测试</div>
+            <div class="tab" onclick="showTab('monitor')">实时监控</div>
+        </div>
+
+        <div id="api" class="tab-content active">
+            <div class="card">
+                <div class="card-header">📋 API端点</div>
+                <div class="card-body">
+                    <div class="endpoint">
+                        <span class="method post">POST</span>
+                        <div class="endpoint-content">
+                            <div class="endpoint-url">/api/cache/set</div>
+                            <pre>curl -X POST http://localhost:8080/api/cache/set \
+  -H "Content-Type: application/json" \
+  -d '{"key":"user1","value":"张三","ttl":"1h"}'</pre>
+                            <button class="btn btn-small" onclick="testAPI('set')">测试</button>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <span class="method get">GET</span>
+                        <div class="endpoint-content">
+                            <div class="endpoint-url">/api/cache/get?key=user1</div>
+                            <pre>curl http://localhost:8080/api/cache/get?key=user1</pre>
+                            <button class="btn btn-small" onclick="testAPI('get')">测试</button>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <span class="method delete">DELETE</span>
+                        <div class="endpoint-content">
+                            <div class="endpoint-url">/api/cache/delete?key=user1</div>
+                            <pre>curl -X DELETE http://localhost:8080/api/cache/delete?key=user1</pre>
+                            <button class="btn btn-small" onclick="testAPI('delete')">测试</button>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <span class="method get">GET</span>
+                        <div class="endpoint-content">
+                            <div class="endpoint-url">/api/cache/exists?key=user1</div>
+                            <pre>curl http://localhost:8080/api/cache/exists?key=user1</pre>
+                            <button class="btn btn-small" onclick="testAPI('exists')">测试</button>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <span class="method post">POST</span>
+                        <div class="endpoint-content">
+                            <div class="endpoint-url">/api/cache/flush</div>
+                            <pre>curl -X POST http://localhost:8080/api/cache/flush</pre>
+                            <button class="btn btn-small" onclick="testAPI('flush')">测试</button>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <span class="method get">GET</span>
+                        <div class="endpoint-content">
+                            <div class="endpoint-url">/api/cache/stats</div>
+                            <pre>curl http://localhost:8080/api/cache/stats</pre>
+                            <button class="btn btn-small" onclick="testAPI('stats')">测试</button>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <span class="method get">GET</span>
+                        <div class="endpoint-content">
+                            <div class="endpoint-url">/api/cache/keys</div>
+                            <pre>curl http://localhost:8080/api/cache/keys</pre>
+                            <button class="btn btn-small" onclick="testAPI('keys')">测试</button>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <span class="method post">POST</span>
+                        <div class="endpoint-content">
+                            <div class="endpoint-url">/api/cache/setlist</div>
+                            <pre>curl -X POST http://localhost:8080/api/cache/setlist \
+  -H "Content-Type: application/json" \
+  -d '{"key":"numbers","value":[1,2,3,4,5],"ttl":"1h"}</pre>
+                            <button class="btn btn-small" onclick="testAPI('setlist')">测试</button>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <span class="method get">GET</span>
+                        <div class="endpoint-content">
+                            <div class="endpoint-url">/api/cache/size</div>
+                            <pre>curl http://localhost:8080/api/cache/size</pre>
+                            <button class="btn btn-small" onclick="testAPI('size')">测试</button>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <span class="method get">GET</span>
+                        <div class="endpoint-content">
+                            <div class="endpoint-url">/api/cache/keys/page?page=1&size=10</div>
+                            <pre>curl "http://localhost:8080/api/cache/keys/page?page=1&size=10"</pre>
+                            <button class="btn btn-small" onclick="testAPI('keysPage')">测试</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">🔧 TTL格式</div>
+                <div class="card-body">
+                    <p>支持的时间格式：</p>
+                    <ul>
+                        <li><code>ns</code> - 纳秒</li>
+                        <li><code>us</code> - 微秒</li>
+                        <li><code>ms</code> - 毫秒</li>
+                        <li><code>s</code> - 秒</li>
+                        <li><code>m</code> - 分钟</li>
+                        <li><code>h</code> - 小时</li>
+                    </ul>
+                    <p>示例：<code>30s</code>、<code>5m</code>、<code>2h</code>、<code>1h30m</code></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="test" class="tab-content">
+            <div class="card">
+                <div class="card-header">🧪 在线测试</div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label>操作类型：</label>
+                        <select id="testOperation" onchange="updateTestForm()">
+                            <option value="set">设置缓存</option>
+                            <option value="setlist">批量设置缓存</option>
+                            <option value="get">获取缓存</option>
+                            <option value="delete">删除缓存</option>
+                            <option value="exists">检查存在</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>键 (Key)：</label>
+                        <input type="text" id="testKey" placeholder="例如: user1" value="test_key">
+                    </div>
+
+                    <div class="form-group" id="valueGroup">
+                        <label>值 (Value)：</label>
+                        <input type="text" id="testValue" placeholder="例如: 张三" value="test_value">
+                    </div>
+
+                    <div class="form-group" id="arrayValueGroup" style="display: none;">
+                        <label>数组值 (Array Value)：</label>
+                        <textarea id="testArrayValue" placeholder="例如: [1,2,3,4,5] 或 [&quot;apple&quot;,&quot;banana&quot;] 或 [1,&quot;hello&quot;,true]" rows="3" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">[1,2,3,4,5]</textarea>
+                        <small style="color: #6c757d; margin-top: 4px; display: block;">输入JSON格式的数组，支持数字、字符串、布尔值等混合类型</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>过期时间 (TTL)：</label>
+                        <input type="text" id="testTTL" placeholder="例如: 30s, 5m, 1h (可选)" value="1m">
+                    </div>
+
+                    <button class="btn" onclick="executeTest()">执行测试</button>
+                    <button class="btn" onclick="clearResult()" style="background: #6c757d; margin-left: 10px;">清空结果</button>
+
+                    <div id="testResult"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="monitor" class="tab-content">
+            <div class="card">
+                <div class="card-header">📊 实时监控</div>
+                <div class="card-body">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="statSize">-</div>
+                            <div class="stat-label">缓存大小</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statHits">-</div>
+                            <div class="stat-label">命中次数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statMisses">-</div>
+                            <div class="stat-label">未命中次数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statHitRate">-</div>
+                            <div class="stat-label">命中率</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button class="btn" onclick="refreshStats()">刷新统计</button>
+                        <button class="btn" onclick="toggleAutoRefresh()" id="autoRefreshBtn">开启自动刷新</button>
+                        <button class="btn" onclick="showAllKeys()" style="background: #28a745;">显示所有键</button>
+                        <button class="btn" onclick="showKeysPage()" style="background: #17a2b8;">分页显示</button>
+                    </div>
+
+                    <div id="keysResult" style="margin-top: 20px;"></div>
+
+                    <div id="paginationControls" style="margin-top: 15px; display: none;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button class="btn btn-small" onclick="previousPage()" id="prevBtn">上一页</button>
+                            <span id="pageInfo">第 1 页，共 1 页</span>
+                            <button class="btn btn-small" onclick="nextPage()" id="nextBtn">下一页</button>
+                            <select id="pageSizeSelect" onchange="changePageSize()" style="padding: 4px 8px;">
+                                <option value="10">每页 10 条</option>
+                                <option value="20">每页 20 条</option>
+                                <option value="50">每页 50 条</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval = null;
+        let isAutoRefresh = false;
+        let currentPage = 1;
+        let pageSize = 10;
+        let totalPages = 1;
+
+        function showTab(tabName) {
+            // 隐藏所有标签内容
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // 显示选中的标签
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            // 如果切换到监控标签，自动刷新统计
+            if (tabName === 'monitor') {
+                refreshStats();
+            }
+        }
+
+        function updateTestForm() {
+            const operation = document.getElementById('testOperation').value;
+            const valueGroup = document.getElementById('valueGroup');
+            const arrayValueGroup = document.getElementById('arrayValueGroup');
+
+            if (operation === 'setlist') {
+                valueGroup.style.display = 'none';
+                arrayValueGroup.style.display = 'block';
+            } else {
+                valueGroup.style.display = 'block';
+                arrayValueGroup.style.display = 'none';
+            }
+        }
+
+        async function testAPI(operation) {
+            let url = '';
+            let options = {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+
+            switch(operation) {
+                case 'set':
+                    url = '/api/cache/set';
+                    options.method = 'POST';
+                    options.body = JSON.stringify({
+                        key: 'demo_key',
+                        value: 'demo_value',
+                        ttl: '5m'
+                    });
+                    break;
+                case 'setlist':
+                    url = '/api/cache/setlist';
+                    options.method = 'POST';
+                    options.body = JSON.stringify({
+                        key: 'demo_numbers',
+                        value: [1, 2, 3, 4, 5],
+                        ttl: '1h'
+                    });
+                    break;
+                case 'get':
+                    url = '/api/cache/get?key=demo_key';
+                    break;
+                case 'delete':
+                    url = '/api/cache/delete?key=demo_key';
+                    options.method = 'DELETE';
+                    break;
+                case 'exists':
+                    url = '/api/cache/exists?key=demo_key';
+                    break;
+                case 'flush':
+                    url = '/api/cache/flush';
+                    options.method = 'POST';
+                    break;
+                case 'stats':
+                    url = '/api/cache/stats';
+                    break;
+                case 'keys':
+                    url = '/api/cache/keys';
+                    break;
+                case 'keysPage':
+                    url = '/api/cache/keys/page?page=1&size=5';
+                    break;
+                case 'size':
+                    url = '/api/cache/size';
+                    break;
+            }
+
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+
+                showResult(`✅ ${operation.toUpperCase()} 成功:`, JSON.stringify(data, null, 2), 'success');
+            } catch (error) {
+                showResult(`❌ ${operation.toUpperCase()} 失败:`, error.message, 'error');
+            }
+        }
+
+        async function executeTest() {
+            const operation = document.getElementById('testOperation').value;
+            const key = document.getElementById('testKey').value;
+            const value = document.getElementById('testValue').value;
+            const arrayValue = document.getElementById('testArrayValue').value;
+            const ttl = document.getElementById('testTTL').value;
+
+            if (!key) {
+                showResult('❌ 错误', '请输入键 (Key)', 'error');
+                return;
+            }
+
+            let url = '';
+            let options = {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+
+            switch(operation) {
+                case 'set':
+                    if (!value) {
+                        showResult('❌ 错误', '设置操作需要输入值 (Value)', 'error');
+                        return;
+                    }
+                    url = '/api/cache/set';
+                    options.method = 'POST';
+                    const bodyData = { key, value };
+                    if (ttl) bodyData.ttl = ttl;
+                    options.body = JSON.stringify(bodyData);
+                    break;
+                case 'setlist':
+                    if (!arrayValue) {
+                        showResult('❌ 错误', '批量设置操作需要输入数组值 (Array Value)', 'error');
+                        return;
+                    }
+                    url = '/api/cache/setlist';
+                    options.method = 'POST';
+                    try {
+                        const parsedArray = JSON.parse(arrayValue);
+                        if (!Array.isArray(parsedArray)) {
+                            showResult('❌ 错误', '数组值必须是有效的JSON数组格式', 'error');
+                            return;
+                        }
+                        const listBodyData = { key, value: parsedArray };
+                        if (ttl) listBodyData.ttl = ttl;
+                        options.body = JSON.stringify(listBodyData);
+                    } catch (e) {
+                        showResult('❌ 错误', '数组值JSON格式错误: ' + e.message, 'error');
+                        return;
+                    }
+                    break;
+                case 'get':
+                    url = `/api/cache/get?key=${encodeURIComponent(key)}`;
+                    break;
+                case 'delete':
+                    url = `/api/cache/delete?key=${encodeURIComponent(key)}`;
+                    options.method = 'DELETE';
+                    break;
+                case 'exists':
+                    url = `/api/cache/exists?key=${encodeURIComponent(key)}`;
+                    break;
+            }
+
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+
+                showResult(`✅ ${operation.toUpperCase()} 成功:`, JSON.stringify(data, null, 2), 'success');
+
+                // 如果是设置操作，自动刷新统计
+                if (operation === 'set' || operation === 'setlist') {
+                    setTimeout(refreshStats, 500);
+                }
+            } catch (error) {
+                showResult(`❌ ${operation.toUpperCase()} 失败:`, error.message, 'error');
+            }
+        }
+
+        function showResult(title, content, type) {
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.innerHTML = `
+                <div class="result ${type}">
+                    <strong>${title}</strong>
+                    <div>${content}</div>
+                </div>
+            `;
+        }
+
+        function clearResult() {
+            document.getElementById('testResult').innerHTML = '';
+        }
+
+        async function refreshStats() {
+            try {
+                const response = await fetch('/api/cache/stats');
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    const stats = result.data;
+                    document.getElementById('statSize').textContent = stats.size || 0;
+                    document.getElementById('statHits').textContent = stats.hits || 0;
+                    document.getElementById('statMisses').textContent = stats.misses || 0;
+                    document.getElementById('statHitRate').textContent =
+                        (stats.hit_rate ? (stats.hit_rate * 100).toFixed(2) + '%' : '0%');
+                } else {
+                    console.error('API返回格式错误:', result);
+                }
+            } catch (error) {
+                console.error('获取统计信息失败:', error);
+            }
+        }
+
+        function toggleAutoRefresh() {
+            const btn = document.getElementById('autoRefreshBtn');
+
+            if (isAutoRefresh) {
+                clearInterval(autoRefreshInterval);
+                isAutoRefresh = false;
+                btn.textContent = '开启自动刷新';
+                btn.style.background = '#007bff';
+            } else {
+                autoRefreshInterval = setInterval(refreshStats, 2000);
+                isAutoRefresh = true;
+                btn.textContent = '停止自动刷新';
+                btn.style.background = '#dc3545';
+            }
+        }
+
+        async function showAllKeys() {
+            try {
+                const response = await fetch('/api/cache/keys');
+                const result = await response.json();
+
+                const keysDiv = document.getElementById('keysResult');
+                if (result.success && result.data && result.data.length > 0) {
+                    keysDiv.innerHTML = `
+                        <div style="margin-top: 15px;">
+                            <strong>所有缓存键 (${result.data.length} 个):</strong>
+                            <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 8px;">
+                                ${result.data.map(key => `<code style="margin: 2px 4px; padding: 2px 6px; background: #e9ecef; border-radius: 3px;">${key}</code>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('paginationControls').style.display = 'none';
+                } else {
+                    keysDiv.innerHTML = '<div style="margin-top: 15px; color: #6c757d;">缓存为空</div>';
+                    document.getElementById('paginationControls').style.display = 'none';
+                }
+            } catch (error) {
+                document.getElementById('keysResult').innerHTML =
+                    `<div style="margin-top: 15px; color: #dc3545;">获取键列表失败: ${error.message}</div>`;
+                document.getElementById('paginationControls').style.display = 'none';
+            }
+        }
+
+        async function showKeysPage() {
+            currentPage = 1;
+            await loadKeysPage();
+        }
+
+        async function loadKeysPage() {
+            try {
+                const response = await fetch(`/api/cache/keys/page?page=${currentPage}&size=${pageSize}`);
+                const result = await response.json();
+
+                const keysDiv = document.getElementById('keysResult');
+                if (result.success && result.data) {
+                    const pageData = result.data;
+                    totalPages = Math.ceil(pageData.total / pageSize);
+
+                    keysDiv.innerHTML = `
+                        <div style="margin-top: 15px;">
+                            <strong>缓存键 (第 ${pageData.page} 页，共 ${totalPages} 页，总计 ${pageData.total} 个):</strong>
+                            <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 8px;">
+                                ${pageData.keys.length > 0 ?
+                                    pageData.keys.map(key => `<code style="margin: 2px 4px; padding: 2px 6px; background: #e9ecef; border-radius: 3px;">${key}</code>`).join('') :
+                                    '<span style="color: #6c757d;">此页无数据</span>'
+                                }
+                            </div>
+                        </div>
+                    `;
+
+                    // 更新分页控件
+                    document.getElementById('paginationControls').style.display = 'flex';
+                    document.getElementById('pageInfo').textContent = `第 ${pageData.page} 页，共 ${totalPages} 页`;
+                    document.getElementById('prevBtn').disabled = currentPage <= 1;
+                    document.getElementById('nextBtn').disabled = !pageData.has_next;
+                } else {
+                    keysDiv.innerHTML = '<div style="margin-top: 15px; color: #6c757d;">缓存为空</div>';
+                    document.getElementById('paginationControls').style.display = 'none';
+                }
+            } catch (error) {
+                document.getElementById('keysResult').innerHTML =
+                    `<div style="margin-top: 15px; color: #dc3545;">获取分页键列表失败: ${error.message}</div>`;
+                document.getElementById('paginationControls').style.display = 'none';
+            }
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                loadKeysPage();
+            }
+        }
+
+        function nextPage() {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadKeysPage();
+            }
+        }
+
+        function changePageSize() {
+            const newSize = parseInt(document.getElementById('pageSizeSelect').value);
+            if (newSize !== pageSize) {
+                pageSize = newSize;
+                currentPage = 1; // 重置到第一页
+                loadKeysPage();
+            }
+        }
+
+        // 页面加载时自动刷新一次统计
+        window.onload = function() {
+            refreshStats();
+            updateTestForm(); // 初始化测试表单
+        };
+    </script>
+</body>
+</html>

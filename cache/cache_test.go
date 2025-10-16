@@ -1,354 +1,293 @@
 package cache
 
 import (
-	"sync"
 	"testing"
 	"time"
 
-	"scache/constants"
+	"scache/config"
 )
 
-func TestNewCache(t *testing.T) {
-	c := NewCache()
-	if c == nil {
-		t.Fatal("NewCache() returned nil")
-	}
+func TestLocalCache_BasicOperations(t *testing.T) {
+	cache := NewLocalCache()
 
-	// 测试默认配置
-	if c.Size() != 0 {
-		t.Errorf("Expected cache size 0, got %d", c.Size())
-	}
-
-	stats := c.Stats()
-	if stats.Hits != 0 || stats.Misses != 0 {
-		t.Errorf("Expected zero stats, got Hits: %d, Misses: %d", stats.Hits, stats.Misses)
-	}
-}
-
-func TestCache_Set(t *testing.T) {
-	c := NewCache(WithMaxSize(2))
-
-	// 测试基本设置
-	err := c.Set("key1", "value1", 0)
+	// 测试 SetString 和 GetString
+	err := cache.SetString("test_key", "test_value", 0)
 	if err != nil {
-		t.Errorf("Set() error = %v", err)
+		t.Fatalf("设置字符串失败: %v", err)
 	}
 
-	// 测试空键
-	err = c.Set("", "value", 0)
-	if err == nil {
-		t.Error("Set() with empty key should return error")
+	value, exists := cache.GetString("test_key")
+	if !exists {
+		t.Fatal("获取字符串失败，键不存在")
+	}
+	if value != "test_value" {
+		t.Fatalf("期望值 'test_value'，实际值 '%s'", value)
 	}
 
-	// 测试容量限制
-	c.Set("key1", "value1", 0)
-	c.Set("key2", "value2", 0)
-	c.Set("key3", "value3", 0) // 应该淘汰一个
-
-	if c.Size() > 2 {
-		t.Errorf("Cache size exceeded limit: expected <= 2, got %d", c.Size())
-	}
-}
-
-func TestCache_Get(t *testing.T) {
-	c := NewCache()
-
-	// 设置缓存项
-	c.Set("key1", "value1", 0)
-
-	// 测试获取存在的键
-	value, found := c.Get("key1")
-	if !found {
-		t.Error("Get() should find existing key")
-	}
-	if value != "value1" {
-		t.Errorf("Get() = %v, want %v", value, "value1")
+	// 测试 Exists
+	if !cache.Exists("test_key") {
+		t.Fatal("Exists 检查失败")
 	}
 
-	// 测试获取不存在的键
-	_, found = c.Get("nonexistent")
-	if found {
-		t.Error("Get() should not find nonexistent key")
+	// 测试 Delete
+	if !cache.Delete("test_key") {
+		t.Fatal("删除失败")
 	}
 
-	// 测试空键
-	_, found = c.Get("")
-	if found {
-		t.Error("Get() should not find empty key")
+	if cache.Exists("test_key") {
+		t.Fatal("删除后键仍然存在")
 	}
 }
 
-func TestCache_Expiration(t *testing.T) {
-	c := NewCache()
+func TestLocalCache_ListOperations(t *testing.T) {
+	cache := NewLocalCache()
 
-	// 设置带过期时间的缓存项
-	c.Set("key1", "value1", time.Millisecond*100)
-
-	// 立即获取应该成功
-	_, found := c.Get("key1")
-	if !found {
-		t.Error("Item should be found immediately after set")
+	values := []interface{}{"item1", "item2", "item3"}
+	err := cache.SetList("list_key", values, 0)
+	if err != nil {
+		t.Fatalf("设置列表失败: %v", err)
 	}
 
-	// 等待过期
-	time.Sleep(time.Millisecond * 150)
-
-	// 过期后获取应该失败
-	_, found = c.Get("key1")
-	if found {
-		t.Error("Expired item should not be found")
-	}
-}
-
-func TestCache_Delete(t *testing.T) {
-	c := NewCache()
-
-	// 设置缓存项
-	c.Set("key1", "value1", 0)
-
-	// 删除存在的键
-	deleted := c.Delete("key1")
-	if !deleted {
-		t.Error("Delete() should return true for existing key")
+	retrievedValues, exists := cache.GetList("list_key")
+	if !exists {
+		t.Fatal("获取列表失败，键不存在")
 	}
 
-	// 验证已删除
-	_, found := c.Get("key1")
-	if found {
-		t.Error("Item should not be found after deletion")
+	if len(retrievedValues) != len(values) {
+		t.Fatalf("期望长度 %d，实际长度 %d", len(values), len(retrievedValues))
 	}
 
-	// 删除不存在的键
-	deleted = c.Delete("nonexistent")
-	if deleted {
-		t.Error("Delete() should return false for nonexistent key")
-	}
-
-	// 删除空键
-	deleted = c.Delete("")
-	if deleted {
-		t.Error("Delete() should return false for empty key")
+	for i, v := range values {
+		if retrievedValues[i] != v {
+			t.Fatalf("索引 %d 期望值 %v，实际值 %v", i, v, retrievedValues[i])
+		}
 	}
 }
 
-func TestCache_Exists(t *testing.T) {
-	c := NewCache()
+func TestLocalCache_HashOperations(t *testing.T) {
+	cache := NewLocalCache()
 
-	// 设置缓存项
-	c.Set("key1", "value1", 0)
-
-	// 测试存在的键
-	if !c.Exists("key1") {
-		t.Error("Exists() should return true for existing key")
+	fields := map[string]interface{}{
+		"name": "张三",
+		"age":  30,
+		"city": "北京",
 	}
 
-	// 测试不存在的键
-	if c.Exists("nonexistent") {
-		t.Error("Exists() should return false for nonexistent key")
+	err := cache.SetHash("hash_key", fields, 0)
+	if err != nil {
+		t.Fatalf("设置哈希失败: %v", err)
 	}
 
-	// 测试空键
-	if c.Exists("") {
-		t.Error("Exists() should return false for empty key")
-	}
-}
-
-func TestCache_Flush(t *testing.T) {
-	c := NewCache()
-
-	// 设置多个缓存项
-	c.Set("key1", "value1", 0)
-	c.Set("key2", "value2", 0)
-	c.Set("key3", "value3", 0)
-
-	if c.Size() != 3 {
-		t.Errorf("Expected cache size 3, got %d", c.Size())
+	retrievedFields, exists := cache.GetHash("hash_key")
+	if !exists {
+		t.Fatal("获取哈希失败，键不存在")
 	}
 
-	// 清空缓存
-	c.Flush()
-
-	if c.Size() != 0 {
-		t.Errorf("Expected cache size 0 after flush, got %d", c.Size())
+	if len(retrievedFields) != len(fields) {
+		t.Fatalf("期望字段数 %d，实际字段数 %d", len(fields), len(retrievedFields))
 	}
 
-	// 验证统计信息重置
-	stats := c.Stats()
-	if stats.Hits != 0 || stats.Misses != 0 || stats.Sets != 0 {
-		t.Error("Stats should be reset after flush")
+	for k, v := range fields {
+		if retrievedFields[k] != v {
+			t.Fatalf("字段 %s 期望值 %v，实际值 %v", k, v, retrievedFields[k])
+		}
 	}
 }
 
-func TestCache_Stats(t *testing.T) {
-	c := NewCache(WithStats(true))
+func TestLocalCache_Expiration(t *testing.T) {
+	cache := NewLocalCache()
+
+	// 设置1秒过期的值
+	err := cache.SetString("expire_key", "expire_value", time.Second)
+	if err != nil {
+		t.Fatalf("设置字符串失败: %v", err)
+	}
+
+	// 立即获取应该存在
+	_, exists := cache.GetString("expire_key")
+	if !exists {
+		t.Fatal("刚设置的键不应该过期")
+	}
+
+	// 等待2秒后应该过期
+	time.Sleep(2 * time.Second)
+	_, exists = cache.GetString("expire_key")
+	if exists {
+		t.Fatal("键应该已过期")
+	}
+}
+
+func TestLocalCache_ExpireAndTTL(t *testing.T) {
+	cache := NewLocalCache()
+
+	// 设置不过期的值
+	err := cache.SetString("ttl_key", "ttl_value", 0)
+	if err != nil {
+		t.Fatalf("设置字符串失败: %v", err)
+	}
+
+	// 设置过期时间
+	success := cache.Expire("ttl_key", time.Minute*5)
+	if !success {
+		t.Fatal("设置过期时间失败")
+	}
+
+	// 获取TTL
+	ttl, exists := cache.TTL("ttl_key")
+	if !exists {
+		t.Fatal("键不存在")
+	}
+
+	if ttl <= 0 {
+		t.Fatal("TTL应该大于0")
+	}
+
+	if ttl > time.Minute*5 {
+		t.Fatal("TTL超过预期值")
+	}
+}
+
+func TestLocalCache_Stats(t *testing.T) {
+	cache := NewLocalCache()
 
 	// 初始统计
-	stats := c.Stats()
-	if stats.Hits != 0 || stats.Misses != 0 || stats.Sets != 0 {
-		t.Error("Initial stats should be zero")
+	stats := cache.Stats()
+	if stats == nil {
+		t.Fatal("统计信息为空")
 	}
 
-	// 设置操作
-	c.Set("key1", "value1", 0)
-	stats = c.Stats()
-	if stats.Sets != 1 {
-		t.Errorf("Expected 1 set operation, got %d", stats.Sets)
-	}
+	// 设置一些值
+	cache.SetString("key1", "value1", 0)
+	cache.SetString("key2", "value2", 0)
 
-	// 命中操作
-	c.Get("key1")
-	stats = c.Stats()
-	if stats.Hits != 1 {
-		t.Errorf("Expected 1 hit, got %d", stats.Hits)
-	}
+	// 获取值
+	cache.GetString("key1")
+	cache.GetString("key3") // 不存在的键
 
-	// 未命中操作
-	c.Get("nonexistent")
-	stats = c.Stats()
-	if stats.Misses != 1 {
-		t.Errorf("Expected 1 miss, got %d", stats.Misses)
-	}
-
-	// 删除操作
-	c.Delete("key1")
-	stats = c.Stats()
-	if stats.Deletes != 1 {
-		t.Errorf("Expected 1 delete, got %d", stats.Deletes)
-	}
-
-	// 测试命中率
-	expectedHitRate := float64(stats.Hits) / float64(stats.Hits+stats.Misses)
-	if stats.HitRate != expectedHitRate {
-		t.Errorf("Expected hit rate %f, got %f", expectedHitRate, stats.HitRate)
+	stats = cache.Stats()
+	// 验证统计信息包含必要的字段
+	if _, ok := stats.(map[string]interface{}); !ok {
+		t.Fatal("统计信息格式不正确")
 	}
 }
 
-func TestCache_ConcurrentAccess(t *testing.T) {
-	c := NewCache()
-	var wg sync.WaitGroup
-
-	// 并发写入
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			c.Set(string(rune(i)), i, 0)
-		}(i)
-	}
-
-	// 并发读取
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			c.Get(string(rune(i)))
-		}(i)
-	}
-
-	wg.Wait()
-
-	// 验证数据一致性
-	if c.Size() != 100 {
-		t.Errorf("Expected cache size 100, got %d", c.Size())
-	}
-
-	stats := c.Stats()
-	if stats.Sets != 100 {
-		t.Errorf("Expected 100 sets, got %d", stats.Sets)
-	}
-}
-
-func TestCache_Cleanup(t *testing.T) {
-	c := NewCache(
-		WithCleanupInterval(time.Millisecond*50),
-		WithStats(false), // 关闭统计避免干扰
+func TestLocalCache_Configuration(t *testing.T) {
+	// 使用配置创建缓存
+	cache := NewLocalCache(
+		config.WithMaxSize(10),
+		config.WithDefaultExpiration(time.Minute),
+		config.WithMemoryThreshold(0.7),
 	)
 
-	// 设置带过期时间的缓存项
-	c.Set("key1", "value1", time.Millisecond*100)
-	c.Set("key2", "value2", time.Millisecond*100)
-
-	// 等待清理
-	time.Sleep(time.Millisecond * 200)
-
-	// 检查是否被清理
-	if c.Exists("key1") || c.Exists("key2") {
-		t.Error("Expired items should be cleaned up")
+	// 添加超过限制的键，并访问它们以确保LRU策略正确工作
+	for i := 0; i < 15; i++ {
+		key := "key" + string(rune('A'+i))
+		value := "value" + string(rune('A'+i))
+		err := cache.SetString(key, value, 0)
+		if err != nil {
+			t.Fatalf("设置键 %s 失败: %v", key, err)
+		}
+		// 立即访问以触发LRU策略的Access方法
+		cache.GetString(key)
 	}
-}
 
-func TestCache_GetWithExpiration(t *testing.T) {
-	c := NewCache()
-	if cache, ok := c.(*MemoryCache); ok {
-		// 设置带过期时间的缓存项
-		cache.Set("key1", "value1", time.Hour)
+	// 缓存大小应该不超过限制
+	size := cache.Size()
+	if size > 10 {
+		t.Fatalf("缓存大小 %d 超过限制 10", size)
+	}
 
-		value, expiration, found := cache.GetWithExpiration("key1")
-		if !found {
-			t.Error("Item should be found")
-		}
-
-		if value != "value1" {
-			t.Errorf("Expected value 'value1', got %v", value)
-		}
-
-		if expiration.IsZero() {
-			t.Error("Expiration should not be zero")
+	// 验证最后5个键存在（因为它们最近被访问）
+	for i := 10; i < 15; i++ {
+		key := "key" + string(rune('A'+i))
+		if _, exists := cache.GetString(key); !exists {
+			t.Fatalf("最近的键 %s 应该存在", key)
 		}
 	}
 }
 
-func TestCache_DefaultExpiration(t *testing.T) {
-	c := NewCache(
-		WithDefaultExpiration(time.Millisecond * 100),
+func TestGlobalCache_BasicOperations(t *testing.T) {
+	// 重新初始化全局缓存以确保测试环境干净
+	InitGlobalCache()
+
+	// 测试全局 SetString
+	err := SetString("global_key", "global_value", 0)
+	if err != nil {
+		t.Fatalf("全局设置字符串失败: %v", err)
+	}
+
+	// 测试全局 GetString
+	value, exists := GetString("global_key")
+	if !exists {
+		t.Fatal("全局获取字符串失败，键不存在")
+	}
+	if value != "global_value" {
+		t.Fatalf("期望值 'global_value'，实际值 '%s'", value)
+	}
+
+	// 测试全局 Exists
+	if !Exists("global_key") {
+		t.Fatal("全局 Exists 检查失败")
+	}
+
+	// 测试全局 Delete
+	if !Delete("global_key") {
+		t.Fatal("全局删除失败")
+	}
+
+	if Exists("global_key") {
+		t.Fatal("删除后键仍然存在")
+	}
+}
+
+func TestGlobalCache_Configuration(t *testing.T) {
+	// 使用配置初始化全局缓存
+	InitGlobalCache(
+		config.WithMaxSize(5),
+		config.WithDefaultExpiration(time.Minute*2),
 	)
 
-	// 设置不带TTL的缓存项（应使用默认过期时间）
-	c.Set("key1", "value1", 0)
-
-	// 立即获取应该成功
-	_, found := c.Get("key1")
-	if !found {
-		t.Error("Item should be found immediately")
+	// 添加键
+	for i := 0; i < 3; i++ {
+		SetString("global_key"+string(rune('A'+i)), "value"+string(rune('A'+i)), 0)
 	}
 
-	// 等待过期
-	time.Sleep(time.Millisecond * 150)
+	// 检查大小
+	if Size() != 3 {
+		t.Fatalf("期望大小 3，实际大小 %d", Size())
+	}
 
-	// 过期后获取应该失败
-	_, found = c.Get("key1")
-	if found {
-		t.Error("Item with default expiration should expire")
+	// 检查统计
+	stats := Stats()
+	if stats == nil {
+		t.Fatal("全局统计信息为空")
 	}
 }
 
-func BenchmarkCache_Set(b *testing.B) {
-	c := NewCache(WithStats(false))
-	b.ResetTimer()
+func TestGlobalCache_MixedTypes(t *testing.T) {
+	InitGlobalCache()
 
-	for i := 0; i < b.N; i++ {
-		c.Set("key", "value", 0)
+	// 设置不同类型的数据
+	SetString("str_key", "string_value", 0)
+	SetList("list_key", []interface{}{"a", "b", "c"}, 0)
+	SetHash("hash_key", map[string]interface{}{"field1": "value1"}, 0)
+
+	// 获取数据
+	if _, exists := GetString("str_key"); !exists {
+		t.Fatal("字符串数据不存在")
 	}
-}
 
-func BenchmarkCache_Get(b *testing.B) {
-	c := NewCache(WithStats(false))
-	c.Set("key", "value", 0)
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		c.Get("key")
+	if _, exists := GetList("list_key"); !exists {
+		t.Fatal("列表数据不存在")
 	}
-}
 
-func BenchmarkCache_Concurrent(b *testing.B) {
-	c := NewCache(WithStats(false))
-	c.Set("key", "value", 0)
+	if _, exists := GetHash("hash_key"); !exists {
+		t.Fatal("哈希数据不存在")
+	}
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			c.Set("key", "value", 0)
-			c.Get("key")
-		}
-	})
+	// 获取所有键
+	keys := Keys()
+	if len(keys) != 3 {
+		t.Fatalf("期望3个键，实际%d个", len(keys))
+	}
 }

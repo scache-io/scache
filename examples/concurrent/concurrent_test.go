@@ -16,7 +16,6 @@ func main() {
 	c := cache.NewCache(
 		cache.WithMaxSize(1000),
 		cache.WithDefaultExpiration(time.Minute*5),
-		cache.WithStats(true),
 	)
 
 	var wg sync.WaitGroup

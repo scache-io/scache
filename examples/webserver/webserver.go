@@ -3,8 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
 	"time"
 
 	"scache/cache"
@@ -29,7 +33,80 @@ type CacheStatsResponse struct {
 	Keys    []string `json:"keys,omitempty"`
 }
 
-var appCache *cache.MemoryCache
+var (
+	appCache      *cache.MemoryCache
+	indexTemplate *template.Template
+)
+
+// loadTemplates 加载HTML模板
+func loadTemplates() error {
+	// 尝试多个可能的模板路径
+	templatePaths := []string{
+		"./index.html",                    // 从webserver目录运行
+		"./examples/webserver/index.html", // 从项目根目录运行
+		"index.html",                      // 相对路径
+	}
+
+	var templatePath string
+	var err error
+
+	// 查找存在的模板文件
+	for _, path := range templatePaths {
+		if _, err = os.Stat(path); err == nil {
+			templatePath = path
+			break
+		}
+	}
+
+	// 如果都找不到，尝试从执行文件所在目录查找
+	if templatePath == "" {
+		exePath, exeErr := os.Executable()
+		if exeErr != nil {
+			return fmt.Errorf("获取执行路径失败: %w", exeErr)
+		}
+		exeDir := filepath.Dir(exePath)
+		templatePath = filepath.Join(exeDir, "index.html")
+		if _, err = os.Stat(templatePath); err != nil {
+			return fmt.Errorf("未找到模板文件，尝试的路径: %v", templatePaths)
+		}
+	}
+
+	templateContent, err := os.ReadFile(templatePath)
+	if err != nil {
+		return fmt.Errorf("读取模板文件失败: %w", err)
+	}
+
+	indexTemplate, err = template.New("index").Parse(string(templateContent))
+	if err != nil {
+		return fmt.Errorf("解析模板失败: %w", err)
+	}
+
+	log.Printf("✅ 模板加载成功: %s", templatePath)
+	return nil
+}
+
+// setCORS 设置CORS头，支持远程调用
+func setCORS(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Access-Control-Max-Age", "86400")
+}
+
+// withCORS CORS中间件
+func withCORS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		setCORS(w)
+
+		// 处理预检请求
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next(w, r)
+	}
+}
 
 func main() {
 	fmt.Println("=== 缓存Web服务示例 ===")
@@ -38,51 +115,84 @@ func main() {
 	c := cache.NewCache(
 		cache.WithMaxSize(1000),
 		cache.WithDefaultExpiration(time.Minute*30),
-		cache.WithCleanupInterval(time.Minute*5),
-		cache.WithStats(true),
-		cache.WithInitialCapacity(100),
+		cache.WithMemoryThreshold(0.7),             // 70%内存阈值
+		cache.WithBackgroundCleanup(time.Minute*2), // 后台清理2分钟间隔
 	)
 	appCache = c.(*cache.MemoryCache)
 
-	// 设置路由
-	http.HandleFunc("/", handleHome)
-	http.HandleFunc("/api/cache/set", handleSet)
-	http.HandleFunc("/api/cache/get", handleGet)
-	http.HandleFunc("/api/cache/delete", handleDelete)
-	http.HandleFunc("/api/cache/exists", handleExists)
-	http.HandleFunc("/api/cache/flush", handleFlush)
-	http.HandleFunc("/api/cache/stats", handleStats)
-	http.HandleFunc("/api/cache/keys", handleKeys)
-	http.HandleFunc("/api/cache/size", handleSize)
+	// 加载HTML模板
+	if err := loadTemplates(); err != nil {
+		log.Printf("警告: 加载模板失败: %v", err)
+	}
+
+	// 设置路由 - 使用CORS中间件
+	http.HandleFunc("/", withCORS(handleHome))
+	http.HandleFunc("/index.html", withCORS(handleHome)) // 支持直接访问模板文件
+	http.HandleFunc("/api/cache/set", withCORS(handleSet))
+	http.HandleFunc("/api/cache/setlist", withCORS(handleSetList))
+	http.HandleFunc("/api/cache/get", withCORS(handleGet))
+	http.HandleFunc("/api/cache/delete", withCORS(handleDelete))
+	http.HandleFunc("/api/cache/exists", withCORS(handleExists))
+	http.HandleFunc("/api/cache/flush", withCORS(handleFlush))
+	http.HandleFunc("/api/cache/stats", withCORS(handleStats))
+	http.HandleFunc("/api/cache/keys", withCORS(handleKeys))
+	http.HandleFunc("/api/cache/keys/page", withCORS(handleKeysPage))
+	http.HandleFunc("/api/cache/size", withCORS(handleSize))
 
 	fmt.Println("\n🚀 Web服务启动在 http://localhost:8080")
-	fmt.Println("\n可用的API端点:")
+	fmt.Println("\n✅ 支持功能:")
+	fmt.Println("  🌐 CORS跨域调用支持")
+	fmt.Println("  📱 响应式Web界面")
+	fmt.Println("  🧪 在线API测试")
+	fmt.Println("  📊 实时监控面板")
+	fmt.Println("\n📋 可用的API端点:")
 	fmt.Println("  GET  /                    - 主页和API说明")
 	fmt.Println("  POST /api/cache/set      - 设置缓存项")
+	fmt.Println("  POST /api/cache/setlist   - 批量设置缓存项")
 	fmt.Println("  GET  /api/cache/get      - 获取缓存项")
 	fmt.Println("  DELETE /api/cache/delete - 删除缓存项")
 	fmt.Println("  GET  /api/cache/exists   - 检查缓存项是否存在")
 	fmt.Println("  POST /api/cache/flush    - 清空缓存")
 	fmt.Println("  GET  /api/cache/stats    - 获取缓存统计")
 	fmt.Println("  GET  /api/cache/keys     - 获取所有键")
+	fmt.Println("  GET  /api/cache/keys/page?page=1&size=10 - 分页获取键")
 	fmt.Println("  GET  /api/cache/size     - 获取缓存大小")
+	fmt.Println("\n🔗 远程调用示例:")
+	fmt.Println("  curl -X POST http://localhost:8080/api/cache/set \\")
+	fmt.Println("    -H \"Content-Type: application/json\" \\")
+	fmt.Println("    -d '{\"key\":\"test\",\"value\":\"远程调用测试\"}'")
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func handleHome(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
+	// 设置CORS头，支持远程调用
+	setCORS(w)
+
+	// 只处理根路径和index.html
+	if r.URL.Path != "/" && r.URL.Path != "/index.html" {
 		http.NotFound(w, r)
 		return
 	}
 
-	html := `
-<!DOCTYPE html>
+	// 如果模板加载成功，使用模板；否则返回简单的HTML响应
+	if indexTemplate != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := indexTemplate.Execute(w, nil); err != nil {
+			log.Printf("模板执行失败: %v", err)
+			http.Error(w, "内部服务器错误", http.StatusInternalServerError)
+		}
+	} else {
+		// 备用简单响应
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, `<!DOCTYPE html>
 <html>
 <head>
     <title>缓存Web服务</title>
+    <meta charset="utf-8">
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; }
+        .error { color: #dc3545; background: #f8d7da; padding: 15px; border-radius: 5px; }
         .endpoint { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
         .method { font-weight: bold; color: #007bff; }
         pre { background: #fff; border-left: 3px solid #007bff; padding: 10px; }
@@ -90,67 +200,25 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 </head>
 <body>
     <h1>🚀 缓存Web服务</h1>
-    <p>这是一个基于Go缓存库的REST API示例服务。</p>
-
-    <h2>📋 API端点</h2>
-
-    <div class="endpoint">
-        <span class="method">POST</span> /api/cache/set
-        <pre>curl -X POST http://localhost:8080/api/cache/set \
-  -H "Content-Type: application/json" \
-  -d '{"key":"user1","value":"张三","ttl":"1h"}'</pre>
+    <div class="error">
+        <strong>注意:</strong> HTML模板文件未找到，正在使用简化界面。
+        <br>请确保 index.html 文件在程序目录中。
     </div>
 
-    <div class="endpoint">
-        <span class="method">GET</span> /api/cache/get?key=user1
-        <pre>curl http://localhost:8080/api/cache/get?key=user1</pre>
-    </div>
+    <h2>📋 可用的API端点</h2>
+    <div class="endpoint"><span class="method">GET</span> /api/cache/stats - 获取缓存统计</div>
+    <div class="endpoint"><span class="method">POST</span> /api/cache/set - 设置缓存项</div>
+    <div class="endpoint"><span class="method">GET</span> /api/cache/get - 获取缓存项</div>
+    <div class="endpoint"><span class="method">DELETE</span> /api/cache/delete - 删除缓存项</div>
+    <div class="endpoint"><span class="method">GET</span> /api/cache/exists - 检查缓存项是否存在</div>
+    <div class="endpoint"><span class="method">POST</span> /api/cache/flush - 清空缓存</div>
+    <div class="endpoint"><span class="method">GET</span> /api/cache/keys - 获取所有键</div>
+    <div class="endpoint"><span class="method">GET</span> /api/cache/size - 获取缓存大小</div>
 
-    <div class="endpoint">
-        <span class="method">DELETE</span> /api/cache/delete?key=user1
-        <pre>curl -X DELETE http://localhost:8080/api/cache/delete?key=user1</pre>
-    </div>
-
-    <div class="endpoint">
-        <span class="method">GET</span> /api/cache/exists?key=user1
-        <pre>curl http://localhost:8080/api/cache/exists?key=user1</pre>
-    </div>
-
-    <div class="endpoint">
-        <span class="method">POST</span> /api/cache/flush
-        <pre>curl -X POST http://localhost:8080/api/cache/flush</pre>
-    </div>
-
-    <div class="endpoint">
-        <span class="method">GET</span> /api/cache/stats
-        <pre>curl http://localhost:8080/api/cache/stats</pre>
-    </div>
-
-    <div class="endpoint">
-        <span class="method">GET</span> /api/cache/keys
-        <pre>curl http://localhost:8080/api/cache/keys</pre>
-    </div>
-
-    <div class="endpoint">
-        <span class="method">GET</span> /api/cache/size
-        <pre>curl http://localhost:8080/api/cache/size</pre>
-    </div>
-
-    <h2>🔧 TTL格式</h2>
-    <p>支持的时间格式：</p>
-    <ul>
-        <li>ns (纳秒)</li>
-        <li>us (微秒)</li>
-        <li>ms (毫秒)</li>
-        <li>s (秒)</li>
-        <li>m (分钟)</li>
-        <li>h (小时)</li>
-    </ul>
+    <p>✅ 服务已启动并支持CORS远程调用！</p>
 </body>
-</html>`
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(w, html)
+</html>`)
+	}
 }
 
 func handleSet(w http.ResponseWriter, r *http.Request) {
@@ -328,4 +396,78 @@ func sendError(w http.ResponseWriter, message string, statusCode int) {
 	}
 
 	json.NewEncoder(w).Encode(response)
+}
+
+func handleSetList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		sendError(w, "只支持POST方法", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Key   string        `json:"key"`
+		Value []interface{} `json:"value"`
+		TTL   string        `json:"ttl,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, "无效的JSON格式", http.StatusBadRequest)
+		return
+	}
+
+	if req.Key == "" {
+		sendError(w, "key字段不能为空", http.StatusBadRequest)
+		return
+	}
+
+	if req.Value == nil {
+		sendError(w, "value字段不能为空", http.StatusBadRequest)
+		return
+	}
+
+	// 解析TTL
+	var ttl time.Duration
+	if req.TTL != "" {
+		var err error
+		ttl, err = time.ParseDuration(req.TTL)
+		if err != nil {
+			sendError(w, "无效的TTL格式", http.StatusBadRequest)
+			return
+		}
+	}
+
+	err := appCache.SetList(req.Key, req.Value, ttl)
+	if err != nil {
+		sendError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	sendResponse(w, true, map[string]interface{}{"message": "批量设置成功"}, "")
+}
+
+func handleKeysPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		sendError(w, "只支持GET方法", http.StatusMethodNotAllowed)
+		return
+	}
+
+	pageStr := r.URL.Query().Get("page")
+	sizeStr := r.URL.Query().Get("size")
+
+	page := 1
+	size := 10
+
+	if pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+
+	if sizeStr != "" {
+		if s, err := strconv.Atoi(sizeStr); err == nil && s > 0 {
+			size = s
+		}
+	}
+
+	pageResult := appCache.KeysPage(page, size)
+	sendResponse(w, true, pageResult, "")
 }
