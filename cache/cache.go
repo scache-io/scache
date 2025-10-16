@@ -1,8 +1,6 @@
 package cache
 
 import (
-	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/scache-io/scache/config"
@@ -56,62 +54,6 @@ func (c *LocalCache) GetString(key string) (string, bool) {
 	return "", false
 }
 
-// Set 设置字符串值（接口风格）
-func (c *LocalCache) Set(key string, value interface{}, ttl ...time.Duration) error {
-	var expiration time.Duration
-	if len(ttl) > 0 {
-		expiration = ttl[0]
-	}
-
-	// 根据值的类型创建相应的对象
-	switch v := value.(type) {
-	case string:
-		obj := types.NewStringObject(v, expiration)
-		return c.engine.Set(key, obj)
-	case []interface{}:
-		obj := types.NewListObject(v, expiration)
-		return c.engine.Set(key, obj)
-	case map[string]interface{}:
-		obj := types.NewHashObject(v, expiration)
-		return c.engine.Set(key, obj)
-	default:
-		// 其他类型转为JSON存储
-		jsonBytes, err := json.Marshal(v)
-		if err != nil {
-			// 如果序列化失败，降级为字符串存储
-			obj := types.NewStringObject(fmt.Sprintf("%v", v), expiration)
-			return c.engine.Set(key, obj)
-		}
-		obj := types.NewStringObject(string(jsonBytes), expiration)
-		return c.engine.Set(key, obj)
-	}
-}
-
-// Get 获取值（接口风格）
-func (c *LocalCache) Get(key string) (interface{}, bool) {
-	obj, exists := c.engine.Get(key)
-	if !exists {
-		return nil, false
-	}
-
-	// 根据对象类型返回相应的值
-	switch v := obj.(type) {
-	case *types.StringObject:
-		// 尝试解析为JSON，如果不是则返回原始字符串
-		str := v.Value()
-		var result interface{}
-		if err := json.Unmarshal([]byte(str), &result); err == nil {
-			return result, true
-		}
-		return str, true
-	case *types.ListObject:
-		return v.Values(), true
-	case *types.HashObject:
-		return v.Fields(), true
-	default:
-		return obj, true
-	}
-}
 
 // SetList 设置列表值
 func (c *LocalCache) SetList(key string, values []interface{}, ttl ...time.Duration) error {
