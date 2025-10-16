@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"scache"
-	"scache/config"
-	"scache/storage"
-	"scache/types"
+	"github.com/scache-io/scache"
+	"github.com/scache-io/scache/config"
+	"github.com/scache-io/scache/storage"
+	"github.com/scache-io/scache/types"
 )
 
 // BenchmarkSetOperation SET操作性能测试

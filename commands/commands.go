@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"scache/interfaces"
-	"scache/types"
+	"github.com/scache-io/scache/interfaces"
+	"github.com/scache-io/scache/types"
 )
 
 // BaseCommand 基础命令实现

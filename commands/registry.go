@@ -4,7 +4,7 @@ import (
 	"strings"
 	"sync"
 
-	"scache/interfaces"
+	"github.com/scache-io/scache/interfaces"
 )
 
 // CommandRegistry 命令注册表

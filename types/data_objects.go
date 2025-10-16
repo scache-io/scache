@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"scache/interfaces"
+	"github.com/scache-io/scache/interfaces"
 )
 
 // BaseObject 基础对象实现

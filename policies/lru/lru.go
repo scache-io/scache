@@ -4,8 +4,8 @@ import (
 	"container/list"
 	"sync"
 
-	"scache/constants"
-	"scache/interfaces"
+	"github.com/scache-io/scache/constants"
+	"github.com/scache-io/scache/interfaces"
 )
 
 // 本包实现了LRU（Least Recently Used）缓存淘汰策略

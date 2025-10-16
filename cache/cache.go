@@ -3,10 +3,10 @@ package cache
 import (
 	"time"
 
-	"scache/config"
-	"scache/interfaces"
-	"scache/storage"
-	"scache/types"
+	"github.com/scache-io/scache/config"
+	"github.com/scache-io/scache/interfaces"
+	"github.com/scache-io/scache/storage"
+	"github.com/scache-io/scache/types"
 )
 
 // NewEngine 创建新的存储引擎实例

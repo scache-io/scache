@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"scache/interfaces"
-	"scache/storage"
-	"scache/types"
+	"github.com/scache-io/scache/interfaces"
+	"github.com/scache-io/scache/storage"
+	"github.com/scache-io/scache/types"
 )
 
 func createTestEngine() interfaces.StorageEngine {

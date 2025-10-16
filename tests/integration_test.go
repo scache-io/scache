@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"scache"
-	"scache/config"
-	"scache/interfaces"
-	"scache/storage"
-	"scache/types"
+	"github.com/scache-io/scache"
+	"github.com/scache-io/scache/config"
+	"github.com/scache-io/scache/interfaces"
+	"github.com/scache-io/scache/storage"
+	"github.com/scache-io/scache/types"
 )
 
 // TestBasicIntegration 基础集成测试

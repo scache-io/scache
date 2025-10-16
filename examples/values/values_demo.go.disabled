@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"scache/values"
+	"github.com/scache-io/scache/values"
 )
 
 func main() {

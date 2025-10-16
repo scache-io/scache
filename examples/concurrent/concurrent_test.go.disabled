@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"scache/cache"
+	"github.com/scache-io/scache/cache"
 )
 
 func main() {

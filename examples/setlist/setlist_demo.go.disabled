@@ -4,16 +4,17 @@ import (
 	"fmt"
 	"time"
 
-	"scache/cache"
+	"github.com/scache-io/scache/cache"
+	"github.com/scache-io/scache/config"
 )
 
 func main() {
 	fmt.Println("=== SetList 批量设置示例 ===")
 
 	// 1. 创建缓存实例
-	c := cache.NewCache(
-		cache.WithMaxSize(1000),
-		cache.WithDefaultExpiration(time.Minute*10),
+	c := cache.NewLocalCache(
+		config.WithMaxSize(1000),
+		config.WithDefaultExpiration(time.Minute*10),
 	)
 
 	// 2. 准备各种类型的测试数据

@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"scache/cache"
+	"github.com/scache-io/scache/cache"
 )
 
 // Response API响应结构

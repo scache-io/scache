@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"scache/interfaces"
-	"scache/policies/lru"
-	"scache/types"
+	"github.com/scache-io/scache/interfaces"
+	"github.com/scache-io/scache/policies/lru"
+	"github.com/scache-io/scache/types"
 )
 
 // StorageEngine 存储引擎实现

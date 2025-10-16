@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"scache/storage"
+	"github.com/scache-io/scache/storage"
 )
 
 func TestEngineConfig(t *testing.T) {

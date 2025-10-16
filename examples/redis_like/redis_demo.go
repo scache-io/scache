@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"scache"
-	"scache/config"
+	"github.com/scache-io/scache"
+	"github.com/scache-io/scache/config"
 )
 
 func main() {

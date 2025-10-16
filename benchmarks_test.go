@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"scache/config"
-	"scache/storage"
-	"scache/types"
+	"github.com/scache-io/scache/config"
+	"github.com/scache-io/scache/storage"
+	"github.com/scache-io/scache/types"
 )
 
 // BenchmarkStorageSet 存储引擎SET性能基准测试

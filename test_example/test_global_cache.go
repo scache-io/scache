@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"scache"
+	"github.com/scache-io/scache"
 )
 
 func main() {

@@ -45,10 +45,10 @@ import (
 	"sync"
 	"time"
 
-	"scache/commands"
-	"scache/config"
-	"scache/interfaces"
-	"scache/storage"
+	"github.com/scache-io/scache/commands"
+	"github.com/scache-io/scache/config"
+	"github.com/scache-io/scache/interfaces"
+	"github.com/scache-io/scache/storage"
 )
 
 // Engine 存储引擎别名

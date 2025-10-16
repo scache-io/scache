@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"scache/storage"
+	"github.com/scache-io/scache/storage"
 )
 
 // EngineOption 引擎配置选项

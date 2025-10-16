@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"scache/config"
+	"github.com/scache-io/scache/config"
 )
 
 func TestLocalCache_BasicOperations(t *testing.T) {
