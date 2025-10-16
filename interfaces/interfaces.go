@@ -69,20 +69,6 @@ type StorageEngine interface {
 	Stats() interface{}
 }
 
-// Command 命令接口
-type Command interface {
-	Name() string
-	Execute(ctx *Context) error
-	Validate(args []interface{}) error
-}
-
-// Context 执行上下文
-type Context struct {
-	Storage StorageEngine
-	Args    []interface{}
-	Result  interface{}
-	Error   error
-}
 
 // EvictionPolicy 淘汰策略接口
 type EvictionPolicy interface {
@@ -114,11 +100,3 @@ type EvictionPolicy interface {
 	UpdateCapacity(newCapacity int)
 }
 
-// CachePage 分页结果
-type CachePage struct {
-	Keys    []string `json:"keys"`
-	Total   int      `json:"total"`
-	Page    int      `json:"page"`
-	Size    int      `json:"size"`
-	HasNext bool     `json:"has_next"`
-}

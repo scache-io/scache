@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/scache-io/scache/cache"
+	"github.com/scache-io/scache"
 	"github.com/scache-io/scache/config"
 )
 
@@ -27,7 +27,7 @@ func main() {
 
 func demonstrateLocalCache() {
 	// 创建一个局部缓存实例，配置最大100个键，默认5分钟过期
-	localCache := cache.NewLocalCache(
+	localCache := scache.New(
 		config.WithMaxSize(100),
 		config.WithDefaultExpiration(5*time.Minute),
 	)
@@ -81,19 +81,19 @@ func demonstrateLocalCache() {
 
 func demonstrateGlobalCache() {
 	// 初始化全局缓存，使用中型配置
-	cache.InitGlobalCache(config.MediumConfig...)
+	scache.InitGlobalCache(config.MediumConfig...)
 
 	// 全局缓存操作非常简单，直接调用函数即可
-	cache.SetString("app_name", "MyApplication", 0)
-	cache.SetString("version", "1.0.0", 0)
-	cache.SetString("author", "Developer", 0)
+	scache.SetString("app_name", "MyApplication", 0)
+	scache.SetString("version", "1.0.0", 0)
+	scache.SetString("author", "Developer", 0)
 
 	// 获取全局缓存值
-	if appName, found := cache.GetString("app_name"); found {
+	if appName, found := scache.GetString("app_name"); found {
 		fmt.Printf("应用名称: %s\n", appName)
 	}
 
-	if version, found := cache.GetString("version"); found {
+	if version, found := scache.GetString("version"); found {
 		fmt.Printf("版本: %s\n", version)
 	}
 
@@ -105,15 +105,15 @@ func demonstrateGlobalCache() {
 		"timeout":    30,
 		"enable_ssl": false,
 	}
-	cache.SetHash("app_config", appConfig, 0)
+	scache.SetHash("app_config", appConfig, 0)
 
-	if config, found := cache.GetHash("app_config"); found {
+	if config, found := scache.GetHash("app_config"); found {
 		fmt.Printf("应用配置: 端口=%v, 调试模式=%v\n",
 			config["port"], config["debug"])
 	}
 
 	// 全局缓存统计
-	globalStats := cache.Stats()
+	globalStats := scache.Stats()
 	if statsMap, ok := globalStats.(map[string]interface{}); ok {
 		fmt.Printf("全局缓存统计: 大小=%.0f, 命中次数=%.0f\n",
 			statsMap["keys"], statsMap["hits"])
@@ -122,7 +122,7 @@ func demonstrateGlobalCache() {
 
 func demonstrateDataTypes() {
 	// 创建一个专门用于演示数据类型的缓存
-	typeCache := cache.NewLocalCache()
+	typeCache := scache.New()
 
 	// 字符串类型
 	typeCache.SetString("message", "Hello, World!", 0)

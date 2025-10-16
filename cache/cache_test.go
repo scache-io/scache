@@ -207,86 +207,87 @@ func TestLocalCache_Configuration(t *testing.T) {
 }
 
 func TestGlobalCache_BasicOperations(t *testing.T) {
-	// 重新初始化全局缓存以确保测试环境干净
-	InitGlobalCache()
+	// 创建局部缓存实例用于测试全局功能模式
+	testCache := NewLocalCache()
 
-	// 测试全局 SetString
-	err := SetString("global_key", "global_value", 0)
+	// 测试 SetString
+	err := testCache.SetString("global_key", "global_value", 0)
 	if err != nil {
-		t.Fatalf("全局设置字符串失败: %v", err)
+		t.Fatalf("设置字符串失败: %v", err)
 	}
 
-	// 测试全局 GetString
-	value, exists := GetString("global_key")
+	// 测试 GetString
+	value, exists := testCache.GetString("global_key")
 	if !exists {
-		t.Fatal("全局获取字符串失败，键不存在")
+		t.Fatal("获取字符串失败，键不存在")
 	}
 	if value != "global_value" {
 		t.Fatalf("期望值 'global_value'，实际值 '%s'", value)
 	}
 
-	// 测试全局 Exists
-	if !Exists("global_key") {
-		t.Fatal("全局 Exists 检查失败")
+	// 测试 Exists
+	if !testCache.Exists("global_key") {
+		t.Fatal("Exists 检查失败")
 	}
 
-	// 测试全局 Delete
-	if !Delete("global_key") {
-		t.Fatal("全局删除失败")
+	// 测试 Delete
+	if !testCache.Delete("global_key") {
+		t.Fatal("删除失败")
 	}
 
-	if Exists("global_key") {
+	if testCache.Exists("global_key") {
 		t.Fatal("删除后键仍然存在")
 	}
 }
 
 func TestGlobalCache_Configuration(t *testing.T) {
-	// 使用配置初始化全局缓存
-	InitGlobalCache(
+	// 使用配置初始化缓存
+	testCache := NewLocalCache(
 		config.WithMaxSize(5),
 		config.WithDefaultExpiration(time.Minute*2),
 	)
 
 	// 添加键
 	for i := 0; i < 3; i++ {
-		SetString("global_key"+string(rune('A'+i)), "value"+string(rune('A'+i)), 0)
+		testCache.SetString("global_key"+string(rune('A'+i)), "value"+string(rune('A'+i)), 0)
 	}
 
 	// 检查大小
-	if Size() != 3 {
-		t.Fatalf("期望大小 3，实际大小 %d", Size())
+	if testCache.Size() != 3 {
+		t.Fatalf("期望大小 3，实际大小 %d", testCache.Size())
 	}
 
 	// 检查统计
-	stats := Stats()
+	stats := testCache.Stats()
 	if stats == nil {
-		t.Fatal("全局统计信息为空")
+		t.Fatal("统计信息为空")
 	}
 }
 
 func TestGlobalCache_MixedTypes(t *testing.T) {
-	InitGlobalCache()
+	// 创建一个全新的缓存实例进行测试
+	testCache := NewLocalCache()
 
 	// 设置不同类型的数据
-	SetString("str_key", "string_value", 0)
-	SetList("list_key", []interface{}{"a", "b", "c"}, 0)
-	SetHash("hash_key", map[string]interface{}{"field1": "value1"}, 0)
+	testCache.SetString("str_key", "string_value", 0)
+	testCache.SetList("list_key", []interface{}{"a", "b", "c"}, 0)
+	testCache.SetHash("hash_key", map[string]interface{}{"field1": "value1"}, 0)
 
 	// 获取数据
-	if _, exists := GetString("str_key"); !exists {
+	if _, exists := testCache.GetString("str_key"); !exists {
 		t.Fatal("字符串数据不存在")
 	}
 
-	if _, exists := GetList("list_key"); !exists {
+	if _, exists := testCache.GetList("list_key"); !exists {
 		t.Fatal("列表数据不存在")
 	}
 
-	if _, exists := GetHash("hash_key"); !exists {
+	if _, exists := testCache.GetHash("hash_key"); !exists {
 		t.Fatal("哈希数据不存在")
 	}
 
 	// 获取所有键
-	keys := Keys()
+	keys := testCache.Keys()
 	if len(keys) != 3 {
 		t.Fatalf("期望3个键，实际%d个", len(keys))
 	}

@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/scache-io/scache/cache"
+	"github.com/scache-io/scache"
 	"github.com/scache-io/scache/config"
 )
 
@@ -14,7 +14,7 @@ func main() {
 
 	// 1. 局部缓存实例使用
 	fmt.Println("\n1. 局部缓存实例使用")
-	c := cache.NewLocalCache(
+	c := scache.New(
 		config.WithMaxSize(100),
 		config.WithDefaultExpiration(time.Minute*5),
 	)
@@ -83,10 +83,10 @@ func main() {
 	fmt.Println("\n6. 全局缓存使用演示")
 
 	// 使用全局缓存
-	cache.SetString("global:user:2001", "李四", time.Minute*15)
-	cache.SetString("global:user:2002", "王五", time.Minute*15)
+	scache.SetString("global:user:2001", "李四", time.Minute*15)
+	scache.SetString("global:user:2002", "王五", time.Minute*15)
 
-	if name, found := cache.GetString("global:user:2001"); found {
+	if name, found := scache.GetString("global:user:2001"); found {
 		fmt.Printf("全局缓存获取: %v\n", name)
 	}
 
@@ -96,15 +96,15 @@ func main() {
 		"position":   "高级工程师",
 		"salary":     15000,
 	}
-	cache.SetHash("global:profile:2001", globalProfile, 0)
+	scache.SetHash("global:profile:2001", globalProfile, 0)
 
-	if profile, found := cache.GetHash("global:profile:2001"); found {
+	if profile, found := scache.GetHash("global:profile:2001"); found {
 		fmt.Printf("全局用户档案: %+v\n", profile)
 	}
 
 	// 7. 全局缓存统计
 	fmt.Println("\n7. 全局缓存统计")
-	globalStats := cache.Stats()
+	globalStats := scache.Stats()
 	if globalStatsMap, ok := globalStats.(map[string]interface{}); ok {
 		fmt.Printf("全局缓存命中次数: %.0f\n", globalStatsMap["hits"])
 		fmt.Printf("全局缓存大小: %.0f\n", globalStatsMap["keys"])
@@ -155,7 +155,7 @@ func main() {
 	keys := c.Keys()
 	fmt.Printf("所有键: %v\n", keys)
 
-	globalKeys := cache.Keys()
+	globalKeys := scache.Keys()
 	fmt.Printf("全局缓存所有键: %v\n", globalKeys)
 
 	// 12. 清空缓存
@@ -163,6 +163,6 @@ func main() {
 	c.Flush()
 	fmt.Printf("清空后局部缓存大小: %d\n", c.Size())
 
-	cache.Flush()
-	fmt.Printf("清空后全局缓存大小: %d\n", cache.Size())
+	scache.Flush()
+	fmt.Printf("清空后全局缓存大小: %d\n", scache.Size())
 }

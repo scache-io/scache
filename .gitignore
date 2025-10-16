@@ -69,3 +69,6 @@ docs/_build/
 # Local development
 *.local
 local.*
+
+.claude
+CLAUDE.md

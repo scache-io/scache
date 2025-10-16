@@ -4,9 +4,6 @@ import "errors"
 
 // 错误定义
 var (
-	// ErrUnknownCommand 未知命令错误
-	ErrUnknownCommand = errors.New("unknown command")
-
 	// ErrKeyEmpty 键为空错误
 	ErrKeyEmpty = errors.New("key cannot be empty")
 

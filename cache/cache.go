@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/scache-io/scache/config"
@@ -52,6 +53,40 @@ func (c *LocalCache) GetString(key string) (string, bool) {
 		return strObj.Value(), true
 	}
 	return "", false
+}
+
+// Set 设置字符串值（接口风格）
+func (c *LocalCache) Set(key string, value interface{}, ttl ...time.Duration) error {
+	var expiration time.Duration
+	if len(ttl) > 0 {
+		expiration = ttl[0]
+	}
+
+	// 根据值的类型创建相应的对象
+	switch v := value.(type) {
+	case string:
+		obj := types.NewStringObject(v, expiration)
+		return c.engine.Set(key, obj)
+	case []interface{}:
+		obj := types.NewListObject(v, expiration)
+		return c.engine.Set(key, obj)
+	case map[string]interface{}:
+		obj := types.NewHashObject(v, expiration)
+		return c.engine.Set(key, obj)
+	default:
+		// 其他类型转为字符串存储
+		obj := types.NewStringObject(fmt.Sprintf("%v", v), expiration)
+		return c.engine.Set(key, obj)
+	}
+}
+
+// Get 获取值（接口风格）
+func (c *LocalCache) Get(key string) (interface{}, bool) {
+	obj, exists := c.engine.Get(key)
+	if !exists {
+		return nil, false
+	}
+	return obj, true
 }
 
 // SetList 设置列表值
@@ -143,92 +178,4 @@ func (c *LocalCache) Stats() interface{} {
 // GetEngine 获取底层引擎（用于高级操作）
 func (c *LocalCache) GetEngine() interfaces.StorageEngine {
 	return c.engine
-}
-
-// 全局缓存实例
-var globalCache *LocalCache
-
-// 初始化全局缓存
-func init() {
-	globalCache = NewLocalCache()
-}
-
-// SetString 全局设置字符串值
-func SetString(key, value string, ttl ...time.Duration) error {
-	return globalCache.SetString(key, value, ttl...)
-}
-
-// GetString 全局获取字符串值
-func GetString(key string) (string, bool) {
-	return globalCache.GetString(key)
-}
-
-// SetList 全局设置列表值
-func SetList(key string, values []interface{}, ttl ...time.Duration) error {
-	return globalCache.SetList(key, values, ttl...)
-}
-
-// GetList 全局获取列表值
-func GetList(key string) ([]interface{}, bool) {
-	return globalCache.GetList(key)
-}
-
-// SetHash 全局设置哈希值
-func SetHash(key string, fields map[string]interface{}, ttl ...time.Duration) error {
-	return globalCache.SetHash(key, fields, ttl...)
-}
-
-// GetHash 全局获取哈希值
-func GetHash(key string) (map[string]interface{}, bool) {
-	return globalCache.GetHash(key)
-}
-
-// Delete 全局删除键
-func Delete(key string) bool {
-	return globalCache.Delete(key)
-}
-
-// Exists 全局检查键是否存在
-func Exists(key string) bool {
-	return globalCache.Exists(key)
-}
-
-// Keys 全局获取所有键
-func Keys() []string {
-	return globalCache.Keys()
-}
-
-// Flush 全局清空所有数据
-func Flush() error {
-	return globalCache.Flush()
-}
-
-// Size 全局获取缓存大小
-func Size() int {
-	return globalCache.Size()
-}
-
-// Expire 全局设置过期时间
-func Expire(key string, ttl time.Duration) bool {
-	return globalCache.Expire(key, ttl)
-}
-
-// TTL 全局获取剩余生存时间
-func TTL(key string) (time.Duration, bool) {
-	return globalCache.TTL(key)
-}
-
-// Stats 全局获取统计信息
-func Stats() interface{} {
-	return globalCache.Stats()
-}
-
-// GetGlobalCache 获取全局缓存实例
-func GetGlobalCache() *LocalCache {
-	return globalCache
-}
-
-// InitGlobalCache 初始化全局缓存（可配置）
-func InitGlobalCache(opts ...config.EngineOption) {
-	globalCache = NewLocalCache(opts...)
 }
