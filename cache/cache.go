@@ -57,7 +57,6 @@ func (c *LocalCache) GetString(key string) (string, bool) {
 	return "", false
 }
 
-
 // SetList 设置列表值
 func (c *LocalCache) SetList(key string, values []interface{}, ttl ...time.Duration) error {
 	var expiration time.Duration
@@ -104,46 +103,6 @@ func (c *LocalCache) GetHash(key string) (map[string]interface{}, bool) {
 	return nil, false
 }
 
-// Delete 删除键
-func (c *LocalCache) Delete(key string) bool {
-	return c.engine.Delete(key)
-}
-
-// Exists 检查键是否存在
-func (c *LocalCache) Exists(key string) bool {
-	return c.engine.Exists(key)
-}
-
-// Keys 获取所有键
-func (c *LocalCache) Keys() []string {
-	return c.engine.Keys()
-}
-
-// Flush 清空所有数据
-func (c *LocalCache) Flush() error {
-	return c.engine.Flush()
-}
-
-// Size 获取缓存大小
-func (c *LocalCache) Size() int {
-	return c.engine.Size()
-}
-
-// Expire 设置过期时间
-func (c *LocalCache) Expire(key string, ttl time.Duration) bool {
-	return c.engine.Expire(key, ttl)
-}
-
-// TTL 获取剩余生存时间
-func (c *LocalCache) TTL(key string) (time.Duration, bool) {
-	return c.engine.TTL(key)
-}
-
-// Stats 获取统计信息
-func (c *LocalCache) Stats() interface{} {
-	return c.engine.Stats()
-}
-
 // SetStruct 设置结构体值（JSON序列化，要求指针参数）
 func (c *LocalCache) SetStruct(key string, obj interface{}, ttl ...time.Duration) error {
 	// 检查参数是否为指针类型
@@ -183,6 +142,46 @@ func (c *LocalCache) GetStruct(key string, dest interface{}) error {
 	}
 
 	return json.Unmarshal([]byte(stringObj.Value()), dest)
+}
+
+// Delete 删除键
+func (c *LocalCache) Delete(key string) bool {
+	return c.engine.Delete(key)
+}
+
+// Exists 检查键是否存在
+func (c *LocalCache) Exists(key string) bool {
+	return c.engine.Exists(key)
+}
+
+// Keys 获取所有键
+func (c *LocalCache) Keys() []string {
+	return c.engine.Keys()
+}
+
+// Flush 清空所有数据
+func (c *LocalCache) Flush() error {
+	return c.engine.Flush()
+}
+
+// Size 获取缓存大小
+func (c *LocalCache) Size() int {
+	return c.engine.Size()
+}
+
+// Expire 设置过期时间
+func (c *LocalCache) Expire(key string, ttl time.Duration) bool {
+	return c.engine.Expire(key, ttl)
+}
+
+// TTL 获取剩余生存时间
+func (c *LocalCache) TTL(key string) (time.Duration, bool) {
+	return c.engine.TTL(key)
+}
+
+// Stats 获取统计信息
+func (c *LocalCache) Stats() interface{} {
+	return c.engine.Stats()
 }
 
 // GetEngine 获取底层引擎（用于高级操作）
