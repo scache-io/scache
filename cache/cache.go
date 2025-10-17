@@ -103,13 +103,8 @@ func (c *LocalCache) GetHash(key string) (map[string]interface{}, bool) {
 	return nil, false
 }
 
-// SetStruct 设置结构体值（JSON序列化，要求指针参数）
-func (c *LocalCache) SetStruct(key string, obj interface{}, ttl ...time.Duration) error {
-	// 检查参数是否为指针类型
-	if reflect.TypeOf(obj).Kind() != reflect.Ptr {
-		return fmt.Errorf("SetStruct requires a pointer argument, got %T", obj)
-	}
-
+// Store 存储结构体值（JSON序列化，支持指针和非指针类型）
+func (c *LocalCache) Store(key string, obj interface{}, ttl ...time.Duration) error {
 	var expiration time.Duration
 	if len(ttl) > 0 {
 		expiration = ttl[0]
@@ -124,11 +119,11 @@ func (c *LocalCache) SetStruct(key string, obj interface{}, ttl ...time.Duration
 	return c.engine.Set(key, stringObj)
 }
 
-// GetStruct 获取结构体值（JSON反序列化，要求指针参数）
-func (c *LocalCache) GetStruct(key string, dest interface{}) error {
+// Load 加载结构体值（JSON反序列化，要求指针参数）
+func (c *LocalCache) Load(key string, dest interface{}) error {
 	// 检查参数是否为指针类型
 	if reflect.TypeOf(dest).Kind() != reflect.Ptr {
-		return fmt.Errorf("GetStruct requires a pointer argument, got %T", dest)
+		return fmt.Errorf("Load requires a pointer argument, got %T", dest)
 	}
 
 	obj, exists := c.engine.Get(key)

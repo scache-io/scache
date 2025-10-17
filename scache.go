@@ -68,14 +68,14 @@ func GetHash(key string) (map[string]interface{}, bool) {
 	return GetGlobalCache().GetHash(key)
 }
 
-// SetStruct 全局设置结构体值（JSON序列化）
-func SetStruct(key string, obj interface{}, ttl ...time.Duration) error {
-	return GetGlobalCache().SetStruct(key, obj, ttl...)
+// Store 全局存储结构体值（JSON序列化，支持指针和非指针类型）
+func Store(key string, obj interface{}, ttl ...time.Duration) error {
+	return GetGlobalCache().Store(key, obj, ttl...)
 }
 
-// GetStruct 全局获取结构体值（JSON反序列化）
-func GetStruct(key string, dest interface{}) error {
-	return GetGlobalCache().GetStruct(key, dest)
+// Load 全局加载结构体值（JSON反序列化，要求指针参数）
+func Load(key string, dest interface{}) error {
+	return GetGlobalCache().Load(key, dest)
 }
 
 // Delete 全局删除键
