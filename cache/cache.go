@@ -1,6 +1,9 @@
 package cache
 
 import (
+	"encoding/json"
+	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/scache-io/scache/config"
@@ -139,6 +142,47 @@ func (c *LocalCache) TTL(key string) (time.Duration, bool) {
 // Stats 获取统计信息
 func (c *LocalCache) Stats() interface{} {
 	return c.engine.Stats()
+}
+
+// SetStruct 设置结构体值（JSON序列化，要求指针参数）
+func (c *LocalCache) SetStruct(key string, obj interface{}, ttl ...time.Duration) error {
+	// 检查参数是否为指针类型
+	if reflect.TypeOf(obj).Kind() != reflect.Ptr {
+		return fmt.Errorf("SetStruct requires a pointer argument, got %T", obj)
+	}
+
+	var expiration time.Duration
+	if len(ttl) > 0 {
+		expiration = ttl[0]
+	}
+
+	jsonBytes, err := json.Marshal(obj)
+	if err != nil {
+		return err
+	}
+
+	stringObj := types.NewStringObject(string(jsonBytes), expiration)
+	return c.engine.Set(key, stringObj)
+}
+
+// GetStruct 获取结构体值（JSON反序列化，要求指针参数）
+func (c *LocalCache) GetStruct(key string, dest interface{}) error {
+	// 检查参数是否为指针类型
+	if reflect.TypeOf(dest).Kind() != reflect.Ptr {
+		return fmt.Errorf("GetStruct requires a pointer argument, got %T", dest)
+	}
+
+	obj, exists := c.engine.Get(key)
+	if !exists {
+		return fmt.Errorf("key not found: %s", key)
+	}
+
+	stringObj, ok := obj.(*types.StringObject)
+	if !ok {
+		return fmt.Errorf("value is not a struct object")
+	}
+
+	return json.Unmarshal([]byte(stringObj.Value()), dest)
 }
 
 // GetEngine 获取底层引擎（用于高级操作）

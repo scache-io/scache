@@ -107,3 +107,13 @@ func TTL(key string) (time.Duration, bool) {
 func Stats() interface{} {
 	return GetGlobalCache().Stats()
 }
+
+// SetStruct 全局设置结构体值（JSON序列化）
+func SetStruct(key string, obj interface{}, ttl ...time.Duration) error {
+	return GetGlobalCache().SetStruct(key, obj, ttl...)
+}
+
+// GetStruct 全局获取结构体值（JSON反序列化）
+func GetStruct(key string, dest interface{}) error {
+	return GetGlobalCache().GetStruct(key, dest)
+}
