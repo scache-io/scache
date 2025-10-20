@@ -173,4 +173,4 @@ go test ./...
 
 # 构建工具
 go build -o scache ./cmd/scache
-```
+```# Go Install Support
