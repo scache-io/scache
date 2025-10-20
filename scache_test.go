@@ -1,4 +1,4 @@
-package scache
+package main
 
 import (
 	"testing"

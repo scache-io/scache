@@ -12,7 +12,7 @@ import (
 
 const (
 	appName = "scache"
-	version = "1.0.0"
+	version = "v0.0.1"
 )
 
 func main() {
