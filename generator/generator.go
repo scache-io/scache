@@ -1,6 +1,7 @@
 package generator
 
 import (
+	_ "embed"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -8,24 +9,28 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 )
+
+//go:embed cache.tpl
+var cacheTemplateContent string
 
 // Config 生成器配置
 type Config struct {
-	Dir           string   // 扫描目录
-	Package       string   // 包名
-	ExcludeDirs   []string // 排除的目录
-	TargetStructs []string // 指定的结构体名称
-	SplitPackages bool     // 是否按结构体分包
+	Dir            string   // 扫描目录
+	Package        string   // 包名
+	ExcludeDirs    []string // 排除的目录
+	TargetStructs  []string // 指定的结构体名称
+	SplitPackages  bool     // 是否按结构体分包
 	GeneratedCount int      // 生成的结构体数量
 }
 
 // StructInfo 结构体信息
 type StructInfo struct {
-	Name   string          // 结构体名称
-	Fields []FieldInfo     // 字段信息
-	Pkg    string          // 包名
-	Source string          // 源文件路径
+	Name   string      // 结构体名称
+	Fields []FieldInfo // 字段信息
+	Pkg    string      // 包名
+	Source string      // 源文件路径
 }
 
 // FieldInfo 字段信息
@@ -69,12 +74,8 @@ func Generate(config *Config) error {
 	// 记录生成的结构体数量
 	config.GeneratedCount = len(structs)
 
-	// 根据配置选择生成方式
-	if config.SplitPackages {
-		return generateSplitPackages(config, structs)
-	} else {
-		return generateSingleFile(config, structs)
-	}
+	// 直接在同目录生成文件，不再分包
+	return generateInPlace(config, structs)
 }
 
 // scanStructs 扫描目录中的所有结构体
@@ -203,4 +204,102 @@ func fieldTypeToString(expr ast.Expr) string {
 	default:
 		return "unknown"
 	}
+}
+
+// generateInPlace 在原文件同目录下生成_scache.go文件
+func generateInPlace(config *Config, structs []StructInfo) error {
+	// 按包分组结构体
+	packageGroups := make(map[string][]StructInfo)
+	for _, structInfo := range structs {
+		packageGroups[structInfo.Pkg] = append(packageGroups[structInfo.Pkg], structInfo)
+	}
+
+	// 为每个包生成_scache.go文件
+	for pkgName, pkgStructs := range packageGroups {
+		if err := generatePackageScache(config, pkgName, pkgStructs); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// generatePackageScache 为指定包生成_scache.go文件
+func generatePackageScache(config *Config, pkgName string, structs []StructInfo) error {
+	// 找到该包的第一个结构体所在目录
+	targetDir := findPackageDirectory(pkgName, structs)
+	if targetDir == "" {
+		return fmt.Errorf("找不到包 %s 的目录", pkgName)
+	}
+
+	// 生成文件名
+	filename := filepath.Join(targetDir, pkgName+"_scache.go")
+
+	// 生成包代码
+	content, err := generatePackageCode(pkgName, structs)
+	if err != nil {
+		return fmt.Errorf("生成代码失败: %w", err)
+	}
+
+	// 写入文件
+	return generatePackageFile(filename, content)
+}
+
+// findPackageDirectory 找到包的目录
+func findPackageDirectory(pkgName string, structs []StructInfo) string {
+	for _, structInfo := range structs {
+		if structInfo.Pkg == pkgName {
+			return filepath.Dir(structInfo.Source)
+		}
+	}
+	return ""
+}
+
+// TemplateData 模板数据结构
+type TemplateData struct {
+	Package string
+	Structs []StructInfo
+}
+
+// loadTemplate 加载模板文件
+func loadTemplate() (*template.Template, error) {
+	return template.New("cache").Parse(cacheTemplateContent)
+}
+
+// generatePackageCode 为指定包生成缓存代码
+func generatePackageCode(pkgName string, structs []StructInfo) (string, error) {
+	// 加载嵌入的模板
+	tmpl, err := loadTemplate()
+	if err != nil {
+		return "", fmt.Errorf("加载模板失败: %w", err)
+	}
+
+	data := TemplateData{
+		Package: pkgName,
+		Structs: structs,
+	}
+
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("执行模板失败: %w", err)
+	}
+
+	return buf.String(), nil
+}
+
+// generatePackageFile 生成包文件
+func generatePackageFile(filePath, content string) error {
+	// 确保目录存在
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("创建目录失败: %w", err)
+	}
+
+	// 写入文件
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("写入文件失败: %w", err)
+	}
+
+	fmt.Printf("✅ 生成缓存文件: %s\n", filePath)
+	return nil
 }
