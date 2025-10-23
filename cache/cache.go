@@ -123,7 +123,7 @@ func (c *LocalCache) Store(key string, obj interface{}, ttl ...time.Duration) er
 func (c *LocalCache) Load(key string, dest interface{}) error {
 	// 检查参数是否为指针类型
 	if reflect.TypeOf(dest).Kind() != reflect.Ptr {
-		return fmt.Errorf("Load requires a pointer argument, got %T", dest)
+		return fmt.Errorf("load requires a pointer argument, got %T", dest)
 	}
 
 	obj, exists := c.engine.Get(key)

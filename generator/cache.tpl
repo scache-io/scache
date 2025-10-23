@@ -7,7 +7,30 @@ import (
 	"sync"
 )
 
+// getTTL 获取TTL时间，工具函数
+func getTTL(ttl ...time.Duration) time.Duration {
+	if len(ttl) > 0 {
+		return ttl[0]
+	}
+	return time.Hour // 默认1小时
+}
+
 {{range .Structs}}
+
+// 默认缓存实例 - 懒汉式单例
+var (
+	default{{.Name}}Scache *{{.Name}}Scache
+	default{{.Name}}ScacheOnce sync.Once
+)
+
+// Get{{.Name}}Scache 获取默认的{{.Name}}缓存实例（懒汉式单例，推荐使用）
+func Get{{.Name}}Scache() *{{.Name}}Scache {
+	default{{.Name}}ScacheOnce.Do(func() {
+		default{{.Name}}Scache = New{{.Name}}Scache()
+	})
+	return default{{.Name}}Scache
+}
+
 // {{.Name}}Cache 缓存管理器
 type {{.Name}}Cache struct {
 	cache map[string]{{.Name}}
@@ -123,16 +146,6 @@ func (c *{{.Name}}Cache) MustLoadPtr(key string) *{{.Name}} {
 		panic(fmt.Sprintf("Load{{.Name}}Ptr failed: %v", err))
 	} else {
 		return obj
-	}
-}
-
-// 默认缓存实例
-var default{{.Name}}Cache = New{{.Name}}Cache()
-
-// Get{{.Name}}Scache 获取默认的{{.Name}}缓存实例（推荐使用）
-func Get{{.Name}}Scache() *{{.Name}}Scache {
-	return &{{.Name}}Scache{
-		cache: default{{.Name}}Cache,
 	}
 }
 
@@ -281,11 +294,3 @@ func (k *{{.Name}}ScacheKey) MustLoadPtr() *{{.Name}} {
 }
 
 {{end}}
-
-// getTTL 获取TTL时间，工具函数
-func getTTL(ttl ...time.Duration) time.Duration {
-	if len(ttl) > 0 {
-		return ttl[0]
-	}
-	return time.Hour // 默认1小时
-}

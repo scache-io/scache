@@ -57,7 +57,6 @@ type StructObject interface {
 
 // StorageEngine 存储引擎接口
 type StorageEngine interface {
-	// 基础操作
 	Set(key string, obj DataObject) error
 	Get(key string) (DataObject, bool)
 	Delete(key string) bool
@@ -66,17 +65,16 @@ type StorageEngine interface {
 	Flush() error
 	Size() int
 
-	// 类型检查
+	// Type 类型检查
 	Type(key string) (DataType, bool)
 
-	// 过期管理
+	// Expire 过期管理
 	Expire(key string, ttl time.Duration) bool
 	TTL(key string) (time.Duration, bool)
 
-	// 统计信息
+	// Stats 统计信息
 	Stats() interface{}
 }
-
 
 // EvictionPolicy 淘汰策略接口
 type EvictionPolicy interface {
@@ -107,4 +105,3 @@ type EvictionPolicy interface {
 	// UpdateCapacity 更新容量限制
 	UpdateCapacity(newCapacity int)
 }
-

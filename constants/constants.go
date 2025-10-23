@@ -11,7 +11,7 @@ const (
 	DefaultStatsEnabled    = true             // 默认启用统计功能
 )
 
-// LRU策略默认配置
+// DefaultLRUCapacity LRU策略默认配置
 const (
 	DefaultLRUCapacity = 100 // LRU策略的默认容量
 )
