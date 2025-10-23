@@ -70,5 +70,6 @@ docs/_build/
 local.*
 
 .claude
+CLAUDE.md
 
 *.tar.gz
