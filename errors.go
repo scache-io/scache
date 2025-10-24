@@ -1,4 +1,4 @@
-package main
+package scache
 
 import "errors"
 
