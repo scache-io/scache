@@ -1,4 +1,4 @@
-module github.com/scache-io/scache
+module github.com/scache-io/scache/cmd/scache
 
 go 1.24.6
 
