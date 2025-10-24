@@ -15,6 +15,9 @@ import (
 //go:embed cache.tpl
 var cacheTemplateContent string
 
+//go:embed cache_generic.tpl
+var cacheGenericTemplateContent string
+
 // Config 生成器配置
 type Config struct {
 	Dir            string   // 扫描目录
@@ -23,6 +26,7 @@ type Config struct {
 	TargetStructs  []string // 指定的结构体名称
 	SplitPackages  bool     // 是否按结构体分包
 	GeneratedCount int      // 生成的结构体数量
+	UseGeneric     bool     // 是否使用泛型版本
 }
 
 // StructInfo 结构体信息
@@ -236,7 +240,7 @@ func generatePackageScache(config *Config, pkgName string, structs []StructInfo)
 	filename := filepath.Join(targetDir, pkgName+"_scache.go")
 
 	// 生成包代码
-	content, err := generatePackageCode(pkgName, structs)
+	content, err := generatePackageCode(pkgName, structs, config.UseGeneric)
 	if err != nil {
 		return fmt.Errorf("生成代码失败: %w", err)
 	}
@@ -262,14 +266,22 @@ type TemplateData struct {
 }
 
 // loadTemplate 加载模板文件
-func loadTemplate() (*template.Template, error) {
-	return template.New("cache").Parse(cacheTemplateContent)
+func loadTemplate(useGeneric bool) (*template.Template, error) {
+	templateName := "cache"
+	templateContent := cacheTemplateContent
+
+	if useGeneric {
+		templateName = "cache_generic"
+		templateContent = cacheGenericTemplateContent
+	}
+
+	return template.New(templateName).Parse(templateContent)
 }
 
 // generatePackageCode 为指定包生成缓存代码
-func generatePackageCode(pkgName string, structs []StructInfo) (string, error) {
+func generatePackageCode(pkgName string, structs []StructInfo, useGeneric bool) (string, error) {
 	// 加载嵌入的模板
-	tmpl, err := loadTemplate()
+	tmpl, err := loadTemplate(useGeneric)
 	if err != nil {
 		return "", fmt.Errorf("加载模板失败: %w", err)
 	}

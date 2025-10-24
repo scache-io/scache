@@ -34,16 +34,18 @@ func main() {
 
 	// gen 命令参数
 	var (
-		dir      string
-		pkgName  string
-		excludes string
-		structs  string
+		dir        string
+		pkgName    string
+		excludes   string
+		structs    string
+		useGeneric bool
 	)
 
 	genCmd.Flags().StringVarP(&dir, "dir", "d", ".", "项目目录路径")
 	genCmd.Flags().StringVarP(&pkgName, "package", "p", "", "包名（默认为目录名）")
 	genCmd.Flags().StringVarP(&excludes, "exclude", "e", "vendor,node_modules,.git", "排除的目录，用逗号分隔")
 	genCmd.Flags().StringVarP(&structs, "structs", "s", "", "指定结构体名称，用逗号分隔（默认生成所有）")
+	genCmd.Flags().BoolVar(&useGeneric, "generic", false, "使用泛型版本（支持Go 1.18+）")
 
 	// 设置 gen 命令为默认命令
 	rootCmd.AddCommand(genCmd)
@@ -65,6 +67,7 @@ func runGen(cmd *cobra.Command, args []string) error {
 	pkgName, _ := cmd.Flags().GetString("package")
 	excludes, _ := cmd.Flags().GetString("exclude")
 	structs, _ := cmd.Flags().GetString("structs")
+	useGeneric, _ := cmd.Flags().GetBool("generic")
 
 	// 检查目录是否存在
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -104,7 +107,8 @@ func runGen(cmd *cobra.Command, args []string) error {
 		Package:       packageName,
 		ExcludeDirs:   excludeDirs,
 		TargetStructs: targetStructs,
-		SplitPackages: true, // 默认分包模式
+		SplitPackages: false,
+		UseGeneric:    useGeneric,
 	}
 
 	// 检测并自动安装 scache 包

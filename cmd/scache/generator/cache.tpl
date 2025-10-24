@@ -53,24 +53,6 @@ func (s *{{.Name}}Scache) Load(key string) ({{.Name}}, error) {
 	return obj, nil
 }
 
-// StorePtr 存储 {{.Name}} 指针到缓存
-func (s *{{.Name}}Scache) StorePtr(key string, obj *{{.Name}}, ttl ...time.Duration) error {
-	if obj == nil {
-		return fmt.Errorf("cannot store nil pointer")
-	}
-	return s.cache.Store(key, obj, ttl...)
-}
-
-// LoadPtr 从缓存加载 {{.Name}} 指针
-func (s *{{.Name}}Scache) LoadPtr(key string) (*{{.Name}}, error) {
-	var obj {{.Name}}
-	err := s.cache.Load(key, &obj)
-	if err != nil {
-		return nil, fmt.Errorf("key '%s' not found in cache: %w", key, err)
-	}
-	return &obj, nil
-}
-
 // Delete 从缓存删除指定key
 func (s *{{.Name}}Scache) Delete(key string) error {
 	s.cache.Delete(key)
@@ -109,112 +91,6 @@ func (s *{{.Name}}Scache) SetTTL(key string, ttl time.Duration) error {
 // GetTTL 获取key的剩余生存时间
 func (s *{{.Name}}Scache) GetTTL(key string) (time.Duration, bool) {
 	return s.cache.TTL(key)
-}
-
-// MustStore 存储 {{.Name}} 到缓存，遇到错误会panic
-func (s *{{.Name}}Scache) MustStore(key string, obj {{.Name}}, ttl ...time.Duration) {
-	if err := s.Store(key, obj, ttl...); err != nil {
-		panic(fmt.Sprintf("Store{{.Name}} failed: %v", err))
-	}
-}
-
-// MustLoad 从缓存加载 {{.Name}}，遇到错误会panic
-func (s *{{.Name}}Scache) MustLoad(key string) {{.Name}} {
-	if obj, err := s.Load(key); err != nil {
-		panic(fmt.Sprintf("Load{{.Name}} failed: %v", err))
-	} else {
-		return obj
-	}
-}
-
-// MustStorePtr 存储 {{.Name}} 指针到缓存，遇到错误会panic
-func (s *{{.Name}}Scache) MustStorePtr(key string, obj *{{.Name}}, ttl ...time.Duration) {
-	if err := s.StorePtr(key, obj, ttl...); err != nil {
-		panic(fmt.Sprintf("Store{{.Name}}Ptr failed: %v", err))
-	}
-}
-
-// MustLoadPtr 从缓存加载 {{.Name}} 指针，遇到错误会panic
-func (s *{{.Name}}Scache) MustLoadPtr(key string) *{{.Name}} {
-	if obj, err := s.LoadPtr(key); err != nil {
-		panic(fmt.Sprintf("Load{{.Name}}Ptr failed: %v", err))
-	} else {
-		return obj
-	}
-}
-
-// WithKey 使用格式化key操作，返回固定key的操作器
-func (s *{{.Name}}Scache) WithKey(format string, args ...interface{}) *{{.Name}}ScacheKey {
-	return &{{.Name}}ScacheKey{
-		scache: s,
-		key:    fmt.Sprintf(format, args...),
-	}
-}
-
-// {{.Name}}ScacheKey 固定key的{{.Name}}缓存操作器
-type {{.Name}}ScacheKey struct {
-	scache *{{.Name}}Scache
-	key    string
-}
-
-// Store 存储 {{.Name}} 到缓存
-func (k *{{.Name}}ScacheKey) Store(obj {{.Name}}, ttl ...time.Duration) error {
-	return k.scache.Store(k.key, obj, ttl...)
-}
-
-// Load 从缓存加载 {{.Name}}
-func (k *{{.Name}}ScacheKey) Load() ({{.Name}}, error) {
-	return k.scache.Load(k.key)
-}
-
-// StorePtr 存储 {{.Name}} 指针到缓存
-func (k *{{.Name}}ScacheKey) StorePtr(obj *{{.Name}}, ttl ...time.Duration) error {
-	return k.scache.StorePtr(k.key, obj, ttl...)
-}
-
-// LoadPtr 从缓存加载 {{.Name}} 指针
-func (k *{{.Name}}ScacheKey) LoadPtr() (*{{.Name}}, error) {
-	return k.scache.LoadPtr(k.key)
-}
-
-// Delete 从缓存删除
-func (k *{{.Name}}ScacheKey) Delete() error {
-	return k.scache.Delete(k.key)
-}
-
-// Exists 检查key是否存在
-func (k *{{.Name}}ScacheKey) Exists() bool {
-	return k.scache.Exists(k.key)
-}
-
-// SetTTL 设置key的过期时间
-func (k *{{.Name}}ScacheKey) SetTTL(ttl time.Duration) error {
-	return k.scache.SetTTL(k.key, ttl)
-}
-
-// GetTTL 获取key的剩余生存时间
-func (k *{{.Name}}ScacheKey) GetTTL() (time.Duration, bool) {
-	return k.scache.GetTTL(k.key)
-}
-
-// MustStore 存储 {{.Name}} 到缓存，遇到错误会panic
-func (k *{{.Name}}ScacheKey) MustStore(obj {{.Name}}, ttl ...time.Duration) {
-	k.scache.MustStore(k.key, obj, ttl...)
-}
-
-// MustLoad 从缓存加载 {{.Name}}，遇到错误会panic
-func (k *{{.Name}}ScacheKey) MustLoad() {{.Name}} {
-	return k.scache.MustLoad(k.key)
-}
-
-// MustStorePtr 存储 {{.Name}} 指针到缓存，遇到错误会panic
-func (k *{{.Name}}ScacheKey) MustStorePtr(obj *{{.Name}}, ttl ...time.Duration) {
-	k.scache.MustStorePtr(k.key, obj, ttl...)
-}
-
-// MustLoadPtr 从缓存加载 {{.Name}} 指针，遇到错误会panic
-func (k *{{.Name}}ScacheKey) MustLoadPtr() *{{.Name}} {
-	return k.scache.MustLoadPtr(k.key)
 }
 
 {{end}}
