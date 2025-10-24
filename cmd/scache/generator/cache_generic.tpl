@@ -10,10 +10,18 @@ import (
 	"github.com/scache-io/scache/config"
 )
 
+// ========================================
+// Scache 泛型缓存管理器
+// ========================================
+
 // Scache 泛型缓存管理器，支持任意结构体类型
 type Scache[T any] struct {
 	cache *scache.LocalCache
 }
+
+// ========================================
+// 构造函数
+// ========================================
 
 // NewScache 创建新的泛型缓存实例
 func NewScache[T any](opts ...config.EngineOption) *Scache[T] {
@@ -21,6 +29,10 @@ func NewScache[T any](opts ...config.EngineOption) *Scache[T] {
 		cache: scache.New(opts...),
 	}
 }
+
+// ========================================
+// 核心存储和读取操作
+// ========================================
 
 // Store 存储类型T的值到缓存
 func (s *Scache[T]) Store(key string, obj T, ttl ...time.Duration) error {
@@ -37,11 +49,42 @@ func (s *Scache[T]) Load(key string) (T, error) {
 	return obj, nil
 }
 
+// ========================================
+// 键管理操作
+// ========================================
+
 // Delete 从缓存删除指定key
 func (s *Scache[T]) Delete(key string) error {
 	s.cache.Delete(key)
 	return nil
 }
+
+// Exists 检查key是否存在
+func (s *Scache[T]) Exists(key string) bool {
+	return s.cache.Exists(key)
+}
+
+// ========================================
+// 过期时间管理
+// ========================================
+
+// SetTTL 设置key的过期时间
+func (s *Scache[T]) SetTTL(key string, ttl time.Duration) error {
+	success := s.cache.Expire(key, ttl)
+	if !success {
+		return fmt.Errorf("failed to set TTL for key '%s'", key)
+	}
+	return nil
+}
+
+// GetTTL 获取key的剩余生存时间
+func (s *Scache[T]) GetTTL(key string) (time.Duration, bool) {
+	return s.cache.TTL(key)
+}
+
+// ========================================
+// 缓存管理操作
+// ========================================
 
 // Clear 清空缓存
 func (s *Scache[T]) Clear() error {
@@ -58,26 +101,14 @@ func (s *Scache[T]) Keys() []string {
 	return s.cache.Keys()
 }
 
-// Exists 检查key是否存在
-func (s *Scache[T]) Exists(key string) bool {
-	return s.cache.Exists(key)
-}
-
-// SetTTL 设置key的过期时间
-func (s *Scache[T]) SetTTL(key string, ttl time.Duration) error {
-	success := s.cache.Expire(key, ttl)
-	if !success {
-		return fmt.Errorf("failed to set TTL for key '%s'", key)
-	}
-	return nil
-}
-
-// GetTTL 获取key的剩余生存时间
-func (s *Scache[T]) GetTTL(key string) (time.Duration, bool) {
-	return s.cache.TTL(key)
-}
+// ========================================
+// 类型特定的便捷函数
+// ========================================
 
 {{range .Structs}}
+
+// {{.Name}} 类型缓存相关函数
+// ----------------------------------------
 
 // 默认缓存实例 - 懒汉式单例
 var (
