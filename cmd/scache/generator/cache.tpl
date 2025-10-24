@@ -5,15 +5,10 @@ import (
 	"fmt"
 	"time"
 	"sync"
-)
 
-// getTTL 获取TTL时间，工具函数
-func getTTL(ttl ...time.Duration) time.Duration {
-	if len(ttl) > 0 {
-		return ttl[0]
-	}
-	return time.Hour // 默认1小时
-}
+	"github.com/scache-io/scache"
+	"github.com/scache-io/scache/config"
+)
 
 {{range .Structs}}
 
@@ -31,177 +26,60 @@ func Get{{.Name}}Scache() *{{.Name}}Scache {
 	return default{{.Name}}Scache
 }
 
-// {{.Name}}Cache 缓存管理器
-type {{.Name}}Cache struct {
-	cache map[string]{{.Name}}
-	mutex sync.RWMutex
-}
-
-// New{{.Name}}Cache 创建新的缓存实例
-func New{{.Name}}Cache() *{{.Name}}Cache {
-	return &{{.Name}}Cache{
-		cache: make(map[string]{{.Name}}),
-	}
-}
-
-// Store 存储 {{.Name}} 到缓存
-func (c *{{.Name}}Cache) Store(key string, obj {{.Name}}, ttl time.Duration) error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.cache[key] = obj
-	return nil
-}
-
-// Load 从缓存加载 {{.Name}}
-func (c *{{.Name}}Cache) Load(key string) ({{.Name}}, error) {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	if obj, exists := c.cache[key]; exists {
-		return obj, nil
-	}
-	return {{.Name}}{}, fmt.Errorf("key '%s' not found in cache", key)
-}
-
-// StorePtr 存储 {{.Name}} 指针到缓存
-func (c *{{.Name}}Cache) StorePtr(key string, obj *{{.Name}}, ttl time.Duration) error {
-	if obj == nil {
-		return fmt.Errorf("cannot store nil pointer")
-	}
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.cache[key] = *obj
-	return nil
-}
-
-// LoadPtr 从缓存加载 {{.Name}} 指针
-func (c *{{.Name}}Cache) LoadPtr(key string) (*{{.Name}}, error) {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	if obj, exists := c.cache[key]; exists {
-		return &obj, nil
-	}
-	return nil, fmt.Errorf("key '%s' not found in cache", key)
-}
-
-// Delete 从缓存删除指定key
-func (c *{{.Name}}Cache) Delete(key string) error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	delete(c.cache, key)
-	return nil
-}
-
-// Clear 清空缓存
-func (c *{{.Name}}Cache) Clear() error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.cache = make(map[string]{{.Name}})
-	return nil
-}
-
-// Size 获取缓存大小
-func (c *{{.Name}}Cache) Size() int {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	return len(c.cache)
-}
-
-// Keys 获取所有缓存键
-func (c *{{.Name}}Cache) Keys() []string {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	keys := make([]string, 0, len(c.cache))
-	for key := range c.cache {
-		keys = append(keys, key)
-	}
-	return keys
-}
-
-// MustStore 存储 {{.Name}} 到缓存，遇到错误会panic
-func (c *{{.Name}}Cache) MustStore(key string, obj {{.Name}}, ttl time.Duration) {
-	if err := c.Store(key, obj, ttl); err != nil {
-		panic(fmt.Sprintf("Store{{.Name}} failed: %v", err))
-	}
-}
-
-// MustLoad 从缓存加载 {{.Name}}，遇到错误会panic
-func (c *{{.Name}}Cache) MustLoad(key string) {{.Name}} {
-	if obj, err := c.Load(key); err != nil {
-		panic(fmt.Sprintf("Load{{.Name}} failed: %v", err))
-	} else {
-		return obj
-	}
-}
-
-// MustStorePtr 存储 {{.Name}} 指针到缓存，遇到错误会panic
-func (c *{{.Name}}Cache) MustStorePtr(key string, obj *{{.Name}}, ttl time.Duration) {
-	if err := c.StorePtr(key, obj, ttl); err != nil {
-		panic(fmt.Sprintf("Store{{.Name}}Ptr failed: %v", err))
-	}
-}
-
-// MustLoadPtr 从缓存加载 {{.Name}} 指针，遇到错误会panic
-func (c *{{.Name}}Cache) MustLoadPtr(key string) *{{.Name}} {
-	if obj, err := c.LoadPtr(key); err != nil {
-		panic(fmt.Sprintf("Load{{.Name}}Ptr failed: %v", err))
-	} else {
-		return obj
-	}
-}
-
-{{end}}
-
-// Scache 通用缓存接口
-type Scache interface {
-	Store(key string, obj interface{}, ttl ...time.Duration) error
-	Load(key string) (interface{}, error)
-	Delete(key string) error
-	Clear() error
-	Size() int
-	Keys() []string
-}
-
-{{range .Structs}}
-// {{.Name}}Scache 带缓存功能的{{.Name}}结构体（高级接口）
+// {{.Name}}Scache 基于scache库的{{.Name}}结构体缓存管理器
 type {{.Name}}Scache struct {
-	cache *{{.Name}}Cache
+	cache *scache.LocalCache
 }
 
 // New{{.Name}}Scache 创建新的{{.Name}}缓存实例
-func New{{.Name}}Scache() *{{.Name}}Scache {
+func New{{.Name}}Scache(opts ...config.EngineOption) *{{.Name}}Scache {
 	return &{{.Name}}Scache{
-		cache: New{{.Name}}Cache(),
+		cache: scache.New(opts...),
 	}
 }
 
 // Store 存储 {{.Name}} 到缓存
 func (s *{{.Name}}Scache) Store(key string, obj {{.Name}}, ttl ...time.Duration) error {
-	return s.cache.Store(key, obj, getTTL(ttl...))
+	return s.cache.Store(key, obj, ttl...)
 }
 
 // Load 从缓存加载 {{.Name}}
 func (s *{{.Name}}Scache) Load(key string) ({{.Name}}, error) {
-	return s.cache.Load(key)
+	var obj {{.Name}}
+	err := s.cache.Load(key, &obj)
+	if err != nil {
+		return {{.Name}}{}, fmt.Errorf("key '%s' not found in cache: %w", key, err)
+	}
+	return obj, nil
 }
 
 // StorePtr 存储 {{.Name}} 指针到缓存
 func (s *{{.Name}}Scache) StorePtr(key string, obj *{{.Name}}, ttl ...time.Duration) error {
-	return s.cache.StorePtr(key, obj, getTTL(ttl...))
+	if obj == nil {
+		return fmt.Errorf("cannot store nil pointer")
+	}
+	return s.cache.Store(key, obj, ttl...)
 }
 
 // LoadPtr 从缓存加载 {{.Name}} 指针
 func (s *{{.Name}}Scache) LoadPtr(key string) (*{{.Name}}, error) {
-	return s.cache.LoadPtr(key)
+	var obj {{.Name}}
+	err := s.cache.Load(key, &obj)
+	if err != nil {
+		return nil, fmt.Errorf("key '%s' not found in cache: %w", key, err)
+	}
+	return &obj, nil
 }
 
 // Delete 从缓存删除指定key
 func (s *{{.Name}}Scache) Delete(key string) error {
-	return s.cache.Delete(key)
+	s.cache.Delete(key)
+	return nil
 }
 
 // Clear 清空缓存
 func (s *{{.Name}}Scache) Clear() error {
-	return s.cache.Clear()
+	return s.cache.Flush()
 }
 
 // Size 获取缓存大小
@@ -214,24 +92,55 @@ func (s *{{.Name}}Scache) Keys() []string {
 	return s.cache.Keys()
 }
 
+// Exists 检查key是否存在
+func (s *{{.Name}}Scache) Exists(key string) bool {
+	return s.cache.Exists(key)
+}
+
+// SetTTL 设置key的过期时间
+func (s *{{.Name}}Scache) SetTTL(key string, ttl time.Duration) error {
+	success := s.cache.Expire(key, ttl)
+	if !success {
+		return fmt.Errorf("failed to set TTL for key '%s'", key)
+	}
+	return nil
+}
+
+// GetTTL 获取key的剩余生存时间
+func (s *{{.Name}}Scache) GetTTL(key string) (time.Duration, bool) {
+	return s.cache.TTL(key)
+}
+
 // MustStore 存储 {{.Name}} 到缓存，遇到错误会panic
 func (s *{{.Name}}Scache) MustStore(key string, obj {{.Name}}, ttl ...time.Duration) {
-	s.cache.MustStore(key, obj, getTTL(ttl...))
+	if err := s.Store(key, obj, ttl...); err != nil {
+		panic(fmt.Sprintf("Store{{.Name}} failed: %v", err))
+	}
 }
 
 // MustLoad 从缓存加载 {{.Name}}，遇到错误会panic
 func (s *{{.Name}}Scache) MustLoad(key string) {{.Name}} {
-	return s.cache.MustLoad(key)
+	if obj, err := s.Load(key); err != nil {
+		panic(fmt.Sprintf("Load{{.Name}} failed: %v", err))
+	} else {
+		return obj
+	}
 }
 
 // MustStorePtr 存储 {{.Name}} 指针到缓存，遇到错误会panic
 func (s *{{.Name}}Scache) MustStorePtr(key string, obj *{{.Name}}, ttl ...time.Duration) {
-	s.cache.MustStorePtr(key, obj, getTTL(ttl...))
+	if err := s.StorePtr(key, obj, ttl...); err != nil {
+		panic(fmt.Sprintf("Store{{.Name}}Ptr failed: %v", err))
+	}
 }
 
 // MustLoadPtr 从缓存加载 {{.Name}} 指针，遇到错误会panic
 func (s *{{.Name}}Scache) MustLoadPtr(key string) *{{.Name}} {
-	return s.cache.MustLoadPtr(key)
+	if obj, err := s.LoadPtr(key); err != nil {
+		panic(fmt.Sprintf("Load{{.Name}}Ptr failed: %v", err))
+	} else {
+		return obj
+	}
 }
 
 // WithKey 使用格式化key操作，返回固定key的操作器
@@ -271,6 +180,21 @@ func (k *{{.Name}}ScacheKey) LoadPtr() (*{{.Name}}, error) {
 // Delete 从缓存删除
 func (k *{{.Name}}ScacheKey) Delete() error {
 	return k.scache.Delete(k.key)
+}
+
+// Exists 检查key是否存在
+func (k *{{.Name}}ScacheKey) Exists() bool {
+	return k.scache.Exists(k.key)
+}
+
+// SetTTL 设置key的过期时间
+func (k *{{.Name}}ScacheKey) SetTTL(ttl time.Duration) error {
+	return k.scache.SetTTL(k.key, ttl)
+}
+
+// GetTTL 获取key的剩余生存时间
+func (k *{{.Name}}ScacheKey) GetTTL() (time.Duration, bool) {
+	return k.scache.GetTTL(k.key)
 }
 
 // MustStore 存储 {{.Name}} 到缓存，遇到错误会panic

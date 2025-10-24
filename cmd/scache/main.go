@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -106,6 +107,11 @@ func runGen(cmd *cobra.Command, args []string) error {
 		SplitPackages: true, // 默认分包模式
 	}
 
+	// 检测并自动安装 scache 包
+	if err := ensureScachePackage(dir); err != nil {
+		return fmt.Errorf("安装scache包失败: %w", err)
+	}
+
 	// 执行代码生成
 	if err := generator.Generate(config); err != nil {
 		return fmt.Errorf("生成失败: %w", err)
@@ -139,4 +145,108 @@ func printSuccess(config *generator.Config, packageName, dir string, targetStruc
 		fmt.Printf("  cache := %s.GetExampleScache()\n", packageName)
 		fmt.Printf("  cache.Store(\"key\", Example{}, time.Hour)\n")
 	}
+}
+
+// ensureScachePackage 检测并自动安装 scache 包
+func ensureScachePackage(dir string) error {
+	// 查找项目根目录的 go.mod 文件
+	projectRoot, err := findProjectRoot(dir)
+	if err != nil {
+		// 如果找不到 go.mod，在当前目录初始化一个
+		fmt.Println("未找到 go.mod 文件，正在初始化...")
+		if err := initGoMod(dir); err != nil {
+			return fmt.Errorf("初始化 go.mod 失败: %w", err)
+		}
+		projectRoot = dir
+	}
+
+	// 检测 scache 包是否已安装
+	if !isScachePackageInstalled(projectRoot) {
+		fmt.Println("正在安装 scache 包...")
+		if err := installScachePackage(projectRoot); err != nil {
+			return fmt.Errorf("安装 scache 包失败: %w", err)
+		}
+		fmt.Println("scache 包安装成功")
+	} else {
+		fmt.Println("scache 包已存在")
+	}
+
+	return nil
+}
+
+// initGoMod go.mod 文件初始化
+func initGoMod(dir string) error {
+	// 获取最后一个目录名作为模块名
+	dirName := filepath.Base(dir)
+	if dirName == "." || dirName == "/" {
+		dirName = "project"
+	}
+	moduleName := "example.com/" + dirName
+
+	// 在传入的目录下执行 go mod init
+	cmd := exec.Command("go", "mod", "init", moduleName)
+	cmd.Dir = dir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("执行 go mod init 失败: %v, output: %s", err, string(output))
+	}
+	return nil
+}
+
+// findProjectRoot 查找项目的根目录（包含go.mod文件的目录）
+func findProjectRoot(dir string) (string, error) {
+	currentDir, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("获取绝对路径失败: %w", err)
+	}
+
+	for {
+		goModPath := filepath.Join(currentDir, "go.mod")
+		if _, err := os.Stat(goModPath); err == nil {
+			return currentDir, nil
+		}
+
+		// 移动到父目录
+		parent := filepath.Dir(currentDir)
+		if parent == currentDir {
+			// 已经到达根目录
+			return "", fmt.Errorf("未找到 go.mod 文件，请先在项目根目录初始化 go.mod")
+		}
+		currentDir = parent
+	}
+}
+
+// isScachePackageInstalled 检测 scache 包是否已安装
+func isScachePackageInstalled(dir string) bool {
+	cmd := exec.Command("go", "list", "-m", "all")
+	cmd.Dir = dir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return false
+	}
+	// 检查输出中是否包含 scache 包
+	return strings.Contains(string(output), "github.com/scache-io/scache")
+}
+
+// installScachePackage 安装 scache 包
+func installScachePackage(dir string) error {
+	// 运行 go get 安装包
+	cmd := exec.Command("go", "get", "github.com/scache-io/scache")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOPROXY=direct", "GOSUMDB=off")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("执行 go get 失败: %v, output: %s", err, string(output))
+	}
+	fmt.Printf("go get 输出: %s\n", string(output))
+
+	// 运行 go mod tidy 确保依赖完整
+	tidyCmd := exec.Command("go", "mod", "tidy")
+	tidyCmd.Dir = dir
+	tidyCmd.Env = append(os.Environ(), "GOPROXY=direct", "GOSUMDB=off")
+	if output, err := tidyCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("执行 go mod tidy 失败: %v, output: %s", err, string(output))
+	}
+	fmt.Printf("go mod tidy 输出: %s\n", string(output))
+
+	return nil
 }
