@@ -307,6 +307,14 @@ func generatePackageFile(filePath, content string) error {
 		return fmt.Errorf("创建目录失败: %w", err)
 	}
 
+	// 检查文件是否已存在，如果存在则先删除
+	if _, err := os.Stat(filePath); err == nil {
+		fmt.Printf("🗑️  删除现有缓存文件: %s\n", filePath)
+		if removeErr := os.Remove(filePath); removeErr != nil {
+			return fmt.Errorf("删除现有文件失败: %w", removeErr)
+		}
+	}
+
 	// 写入文件
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("写入文件失败: %w", err)

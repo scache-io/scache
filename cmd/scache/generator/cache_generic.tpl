@@ -11,6 +11,23 @@ import (
 )
 
 // ========================================
+// 类型特定的缓存实例定义
+// ========================================
+
+{{range .Structs}}
+
+// {{.Name}} 类型缓存相关定义
+// ----------------------------------------
+
+// 默认缓存实例 - 懒汉式单例
+var (
+	default{{.Name}}Scache *Scache[{{.Name}}]
+	default{{.Name}}ScacheOnce sync.Once
+)
+
+{{end}}
+
+// ========================================
 // Scache 泛型缓存管理器
 // ========================================
 
@@ -29,6 +46,27 @@ func NewScache[T any](opts ...config.EngineOption) *Scache[T] {
 		cache: scache.New(opts...),
 	}
 }
+
+// ========================================
+// 类型特定的便捷函数
+// ========================================
+
+{{range .Structs}}
+
+// Get{{.Name}}Scache 获取默认的{{.Name}}缓存实例（懒汉式单例，推荐使用）
+func Get{{.Name}}Scache() *Scache[{{.Name}}] {
+	default{{.Name}}ScacheOnce.Do(func() {
+		default{{.Name}}Scache = NewScache[{{.Name}}]()
+	})
+	return default{{.Name}}Scache
+}
+
+// New{{.Name}}Scache 创建新的{{.Name}}缓存实例
+func New{{.Name}}Scache(opts ...config.EngineOption) *Scache[{{.Name}}] {
+	return NewScache[{{.Name}}](opts...)
+}
+
+{{end}}
 
 // ========================================
 // 核心存储和读取操作
@@ -100,33 +138,3 @@ func (s *Scache[T]) Size() int {
 func (s *Scache[T]) Keys() []string {
 	return s.cache.Keys()
 }
-
-// ========================================
-// 类型特定的便捷函数
-// ========================================
-
-{{range .Structs}}
-
-// {{.Name}} 类型缓存相关函数
-// ----------------------------------------
-
-// 默认缓存实例 - 懒汉式单例
-var (
-	default{{.Name}}Scache *Scache[{{.Name}}]
-	default{{.Name}}ScacheOnce sync.Once
-)
-
-// Get{{.Name}}Scache 获取默认的{{.Name}}缓存实例（懒汉式单例，推荐使用）
-func Get{{.Name}}Scache() *Scache[{{.Name}}] {
-	default{{.Name}}ScacheOnce.Do(func() {
-		default{{.Name}}Scache = NewScache[{{.Name}}]()
-	})
-	return default{{.Name}}Scache
-}
-
-// New{{.Name}}Scache 创建新的{{.Name}}缓存实例
-func New{{.Name}}Scache(opts ...config.EngineOption) *Scache[{{.Name}}] {
-	return NewScache[{{.Name}}](opts...)
-}
-
-{{end}}
