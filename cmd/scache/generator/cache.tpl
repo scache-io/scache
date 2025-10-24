@@ -3,8 +3,8 @@ package {{.Package}}
 
 import (
 	"fmt"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/scache-io/scache"
 	"github.com/scache-io/scache/config"

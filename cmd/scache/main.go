@@ -38,7 +38,8 @@ func main() {
   help    显示帮助信息
 
 💡 快速开始:
-  scache gen --generic              # 生成泛型版本缓存代码（推荐）
+  scache gen -g                     # 生成泛型版本缓存代码（推荐，快捷方式）
+  scache gen --generic              # 生成泛型版本缓存代码（完整方式）
   scache gen -dir ./models          # 指定目录生成
   scache gen -structs User,Product  # 只生成指定结构体
 
@@ -65,10 +66,11 @@ func main() {
   缓存统计和清理功能
 
 使用示例:
-  scache gen --generic                    # 生成泛型版本（推荐）
-  scache gen -dir ./models                # 指定目录生成
-  scache gen -structs User,Product        # 只生成指定结构体
-  scache gen --generic -exclude "test"    # 排除测试目录`,
+  scache gen -g                            # 生成泛型版本（推荐，快捷方式）
+  scache gen --generic                     # 生成泛型版本（完整方式）
+  scache gen -dir ./models                 # 指定目录生成
+  scache gen -structs User,Product         # 只生成指定结构体
+  scache gen -g -exclude "test"            # 排除测试目录`,
 		RunE: runGen,
 	}
 
@@ -85,7 +87,7 @@ func main() {
 	genCmd.Flags().StringVarP(&pkgName, "package", "p", "", "包名（默认为目录名）")
 	genCmd.Flags().StringVarP(&excludes, "exclude", "e", "vendor,node_modules,.git", "排除的目录，用逗号分隔")
 	genCmd.Flags().StringVarP(&structs, "structs", "s", "", "指定结构体名称，用逗号分隔（默认生成所有）")
-	genCmd.Flags().BoolVar(&useGeneric, "generic", false, "使用泛型版本（推荐，Go 1.18+）")
+	genCmd.Flags().BoolVarP(&useGeneric, "generic", "g", false, "使用泛型版本（推荐，Go 1.18+）")
 
 	// 添加 version 子命令
 	var versionCmd = &cobra.Command{
