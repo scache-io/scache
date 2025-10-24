@@ -11,14 +11,15 @@ import (
 )
 
 {{range .Structs}}
-
-// 默认缓存实例 - 懒汉式单例
 var (
 	default{{.Name}}Scache *{{.Name}}Scache
 	default{{.Name}}ScacheOnce sync.Once
 )
 
-// Get{{.Name}}Scache 获取默认的{{.Name}}缓存实例（懒汉式单例，推荐使用）
+type {{.Name}}Scache struct {
+	cache *scache.LocalCache
+}
+
 func Get{{.Name}}Scache() *{{.Name}}Scache {
 	default{{.Name}}ScacheOnce.Do(func() {
 		default{{.Name}}Scache = New{{.Name}}Scache()
@@ -26,24 +27,16 @@ func Get{{.Name}}Scache() *{{.Name}}Scache {
 	return default{{.Name}}Scache
 }
 
-// {{.Name}}Scache 基于scache库的{{.Name}}结构体缓存管理器
-type {{.Name}}Scache struct {
-	cache *scache.LocalCache
-}
-
-// New{{.Name}}Scache 创建新的{{.Name}}缓存实例
 func New{{.Name}}Scache(opts ...config.EngineOption) *{{.Name}}Scache {
 	return &{{.Name}}Scache{
 		cache: scache.New(opts...),
 	}
 }
 
-// Store 存储 {{.Name}} 到缓存
 func (s *{{.Name}}Scache) Store(key string, obj {{.Name}}, ttl ...time.Duration) error {
 	return s.cache.Store(key, obj, ttl...)
 }
 
-// Load 从缓存加载 {{.Name}}
 func (s *{{.Name}}Scache) Load(key string) ({{.Name}}, error) {
 	var obj {{.Name}}
 	err := s.cache.Load(key, &obj)
@@ -53,33 +46,27 @@ func (s *{{.Name}}Scache) Load(key string) ({{.Name}}, error) {
 	return obj, nil
 }
 
-// Delete 从缓存删除指定key
 func (s *{{.Name}}Scache) Delete(key string) error {
 	s.cache.Delete(key)
 	return nil
 }
 
-// Clear 清空缓存
 func (s *{{.Name}}Scache) Clear() error {
 	return s.cache.Flush()
 }
 
-// Size 获取缓存大小
 func (s *{{.Name}}Scache) Size() int {
 	return s.cache.Size()
 }
 
-// Keys 获取所有缓存键
 func (s *{{.Name}}Scache) Keys() []string {
 	return s.cache.Keys()
 }
 
-// Exists 检查key是否存在
 func (s *{{.Name}}Scache) Exists(key string) bool {
 	return s.cache.Exists(key)
 }
 
-// SetTTL 设置key的过期时间
 func (s *{{.Name}}Scache) SetTTL(key string, ttl time.Duration) error {
 	success := s.cache.Expire(key, ttl)
 	if !success {
@@ -88,7 +75,6 @@ func (s *{{.Name}}Scache) SetTTL(key string, ttl time.Duration) error {
 	return nil
 }
 
-// GetTTL 获取key的剩余生存时间
 func (s *{{.Name}}Scache) GetTTL(key string) (time.Duration, bool) {
 	return s.cache.TTL(key)
 }

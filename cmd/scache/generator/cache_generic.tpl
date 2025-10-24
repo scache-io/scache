@@ -10,50 +10,18 @@ import (
 	"github.com/scache-io/scache/config"
 )
 
-// ========================================
-// 类型特定的缓存实例定义
-// ========================================
-
 {{range .Structs}}
-
-// {{.Name}} 类型缓存相关定义
-// ----------------------------------------
-
-// 默认缓存实例 - 懒汉式单例
 var (
 	default{{.Name}}Scache *Scache[{{.Name}}]
 	default{{.Name}}ScacheOnce sync.Once
 )
-
 {{end}}
 
-// ========================================
-// Scache 泛型缓存管理器
-// ========================================
-
-// Scache 泛型缓存管理器，支持任意结构体类型
 type Scache[T any] struct {
 	cache *scache.LocalCache
 }
 
-// ========================================
-// 构造函数
-// ========================================
-
-// NewScache 创建新的泛型缓存实例
-func NewScache[T any](opts ...config.EngineOption) *Scache[T] {
-	return &Scache[T]{
-		cache: scache.New(opts...),
-	}
-}
-
-// ========================================
-// 类型特定的便捷函数
-// ========================================
-
 {{range .Structs}}
-
-// Get{{.Name}}Scache 获取默认的{{.Name}}缓存实例（懒汉式单例，推荐使用）
 func Get{{.Name}}Scache() *Scache[{{.Name}}] {
 	default{{.Name}}ScacheOnce.Do(func() {
 		default{{.Name}}Scache = NewScache[{{.Name}}]()
@@ -61,23 +29,21 @@ func Get{{.Name}}Scache() *Scache[{{.Name}}] {
 	return default{{.Name}}Scache
 }
 
-// New{{.Name}}Scache 创建新的{{.Name}}缓存实例
 func New{{.Name}}Scache(opts ...config.EngineOption) *Scache[{{.Name}}] {
 	return NewScache[{{.Name}}](opts...)
 }
-
 {{end}}
 
-// ========================================
-// 核心存储和读取操作
-// ========================================
+func NewScache[T any](opts ...config.EngineOption) *Scache[T] {
+	return &Scache[T]{
+		cache: scache.New(opts...),
+	}
+}
 
-// Store 存储类型T的值到缓存
 func (s *Scache[T]) Store(key string, obj T, ttl ...time.Duration) error {
 	return s.cache.Store(key, obj, ttl...)
 }
 
-// Load 从缓存加载类型T的值
 func (s *Scache[T]) Load(key string) (T, error) {
 	var obj T
 	err := s.cache.Load(key, &obj)
@@ -87,26 +53,15 @@ func (s *Scache[T]) Load(key string) (T, error) {
 	return obj, nil
 }
 
-// ========================================
-// 键管理操作
-// ========================================
-
-// Delete 从缓存删除指定key
 func (s *Scache[T]) Delete(key string) error {
 	s.cache.Delete(key)
 	return nil
 }
 
-// Exists 检查key是否存在
 func (s *Scache[T]) Exists(key string) bool {
 	return s.cache.Exists(key)
 }
 
-// ========================================
-// 过期时间管理
-// ========================================
-
-// SetTTL 设置key的过期时间
 func (s *Scache[T]) SetTTL(key string, ttl time.Duration) error {
 	success := s.cache.Expire(key, ttl)
 	if !success {
@@ -115,26 +70,18 @@ func (s *Scache[T]) SetTTL(key string, ttl time.Duration) error {
 	return nil
 }
 
-// GetTTL 获取key的剩余生存时间
 func (s *Scache[T]) GetTTL(key string) (time.Duration, bool) {
 	return s.cache.TTL(key)
 }
 
-// ========================================
-// 缓存管理操作
-// ========================================
-
-// Clear 清空缓存
 func (s *Scache[T]) Clear() error {
 	return s.cache.Flush()
 }
 
-// Size 获取缓存大小
 func (s *Scache[T]) Size() int {
 	return s.cache.Size()
 }
 
-// Keys 获取所有缓存键
 func (s *Scache[T]) Keys() []string {
 	return s.cache.Keys()
 }

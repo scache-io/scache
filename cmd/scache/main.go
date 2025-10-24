@@ -27,9 +27,25 @@ func main() {
 	// 添加 gen 子命令
 	var genCmd = &cobra.Command{
 		Use:   "gen",
-		Short: "生成结构体模板代码",
-		Long:  ``,
-		RunE:  runGen,
+		Short: "生成结构体缓存代码",
+		Long: `自动扫描项目中的Go结构体，生成对应的缓存操作方法。
+
+支持两种版本：
+  泛型版本 (推荐): 代码更简洁，类型更安全，需要Go 1.18+
+  传统版本: 兼容旧版Go，功能完整
+
+生成的代码包含：
+  懒汉式单例缓存实例
+  Store/Load/Delete等核心方法
+  TTL过期时间管理
+  缓存统计和清理功能
+
+使用示例:
+  scache gen --generic                    # 生成泛型版本（推荐）
+  scache gen -dir ./models                # 指定目录生成
+  scache gen -structs User,Product        # 只生成指定结构体
+  scache gen --generic -exclude "test"    # 排除测试目录`,
+		RunE: runGen,
 	}
 
 	// gen 命令参数
@@ -45,7 +61,7 @@ func main() {
 	genCmd.Flags().StringVarP(&pkgName, "package", "p", "", "包名（默认为目录名）")
 	genCmd.Flags().StringVarP(&excludes, "exclude", "e", "vendor,node_modules,.git", "排除的目录，用逗号分隔")
 	genCmd.Flags().StringVarP(&structs, "structs", "s", "", "指定结构体名称，用逗号分隔（默认生成所有）")
-	genCmd.Flags().BoolVar(&useGeneric, "generic", false, "使用泛型版本（支持Go 1.18+）")
+	genCmd.Flags().BoolVar(&useGeneric, "generic", false, "使用泛型版本（推荐，Go 1.18+）")
 
 	// 设置 gen 命令为默认命令
 	rootCmd.AddCommand(genCmd)
