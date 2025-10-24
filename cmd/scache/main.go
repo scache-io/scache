@@ -231,7 +231,6 @@ func isScachePackageInstalled(dir string) bool {
 func installScachePackage(dir string) error {
 	// 运行 go get 安装包
 	cmd := exec.Command("go", "get", "github.com/scache-io/scache@latest")
-	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("执行 go get 失败: %v, output: %s", err, string(output))
@@ -240,7 +239,6 @@ func installScachePackage(dir string) error {
 
 	// 运行 go mod tidy 确保依赖完整
 	tidyCmd := exec.Command("go", "mod", "tidy")
-	tidyCmd.Dir = dir
 	if output, err := tidyCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("执行 go mod tidy 失败: %v, output: %s", err, string(output))
 	}
