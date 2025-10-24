@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -320,6 +321,25 @@ func generatePackageFile(filePath, content string) error {
 		return fmt.Errorf("写入文件失败: %w", err)
 	}
 
-	fmt.Printf("✅ 生成缓存文件: %s\n", filePath)
+	// 格式化生成的文件
+	if err := formatGoFile(filePath); err != nil {
+		fmt.Printf("格式化文件失败: %v\n", err)
+	} else {
+		fmt.Printf("生成并格式化缓存文件: %s\n", filePath)
+	}
+
+	return nil
+}
+
+// formatGoFile 格式化Go文件
+func formatGoFile(filePath string) error {
+	// 执行go fmt命令
+	cmd := exec.Command("go", "fmt", filePath)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return fmt.Errorf("go fmt执行失败: %v, 输出: %s", err, string(output))
+	}
+
 	return nil
 }
