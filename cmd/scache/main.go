@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/scache-io/scache/generator"
+	"github.com/scache-io/scache/cmd/scache/generator"
 	"github.com/spf13/cobra"
 )
 
