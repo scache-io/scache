@@ -17,10 +17,6 @@ var (
 )
 {{end}}
 
-type Scache[T any] struct {
-	cache *scache.LocalCache
-}
-
 {{range .Structs}}
 func Get{{.Name}}Scache() *Scache[{{.Name}}] {
 	default{{.Name}}ScacheOnce.Do(func() {
@@ -33,6 +29,10 @@ func New{{.Name}}Scache(opts ...config.EngineOption) *Scache[{{.Name}}] {
 	return NewScache[{{.Name}}](opts...)
 }
 {{end}}
+
+type Scache[T any] struct {
+	cache *scache.LocalCache
+}
 
 func NewScache[T any](opts ...config.EngineOption) *Scache[T] {
 	return &Scache[T]{
