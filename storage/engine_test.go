@@ -4,15 +4,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scache-io/scache/config"
+	"github.com/scache-io/scache/constants"
 	"github.com/scache-io/scache/interfaces"
 	"github.com/scache-io/scache/types"
 )
 
 func TestNewStorageEngine(t *testing.T) {
-	config := &EngineConfig{
+	config := &config.EngineConfig{
 		MaxSize:                   100,
 		DefaultExpiration:         time.Hour,
-		MemoryThreshold:           0.8,
+		MemoryThreshold:           constants.DefaultMemoryThreshold,
 		BackgroundCleanupInterval: time.Minute,
 	}
 
@@ -190,7 +192,7 @@ func TestTTL(t *testing.T) {
 	}
 
 	// Test Expire
-	success := engine.Expire("ttl_key", time.Second*30)
+	success := engine.Expire("ttl_key", constants.ThirtySeconds)
 	if !success {
 		t.Error("Expire should succeed")
 	}
@@ -201,7 +203,7 @@ func TestTTL(t *testing.T) {
 		t.Fatal("Key not found")
 	}
 
-	if newTTL <= time.Second*25 || newTTL > time.Second*30 {
+	if newTTL <= 25*time.Second || newTTL > constants.ThirtySeconds {
 		t.Errorf("TTL should be around 30 seconds, got %v", newTTL)
 	}
 }

@@ -5,10 +5,17 @@ import (
 	"time"
 
 	"github.com/scache-io/scache/config"
+	"github.com/scache-io/scache/constants"
 )
 
 func TestLocalCache_BasicOperations(t *testing.T) {
-	cache := NewLocalCache()
+	testConfig := &config.EngineConfig{
+		MaxSize:                   100,
+		MemoryThreshold:           constants.DefaultMemoryThreshold,
+		DefaultExpiration:         0,
+		BackgroundCleanupInterval: 0,
+	}
+	cache := NewLocalCache(testConfig)
 
 	// 测试 SetString 和 GetString
 	err := cache.SetString("test_key", "test_value", 0)
@@ -40,7 +47,13 @@ func TestLocalCache_BasicOperations(t *testing.T) {
 }
 
 func TestLocalCache_ListOperations(t *testing.T) {
-	cache := NewLocalCache()
+	testConfig := &config.EngineConfig{
+		MaxSize:                   100,
+		MemoryThreshold:           constants.DefaultMemoryThreshold,
+		DefaultExpiration:         0,
+		BackgroundCleanupInterval: 0,
+	}
+	cache := NewLocalCache(testConfig)
 
 	values := []interface{}{"item1", "item2", "item3"}
 	err := cache.SetList("list_key", values, 0)
@@ -65,7 +78,13 @@ func TestLocalCache_ListOperations(t *testing.T) {
 }
 
 func TestLocalCache_HashOperations(t *testing.T) {
-	cache := NewLocalCache()
+	testConfig := &config.EngineConfig{
+		MaxSize:                   100,
+		MemoryThreshold:           constants.DefaultMemoryThreshold,
+		DefaultExpiration:         0,
+		BackgroundCleanupInterval: 0,
+	}
+	cache := NewLocalCache(testConfig)
 
 	fields := map[string]interface{}{
 		"name": "张三",
@@ -95,7 +114,13 @@ func TestLocalCache_HashOperations(t *testing.T) {
 }
 
 func TestLocalCache_Expiration(t *testing.T) {
-	cache := NewLocalCache()
+	testConfig := &config.EngineConfig{
+		MaxSize:                   100,
+		MemoryThreshold:           constants.DefaultMemoryThreshold,
+		DefaultExpiration:         0,
+		BackgroundCleanupInterval: 0,
+	}
+	cache := NewLocalCache(testConfig)
 
 	// 设置1秒过期的值
 	err := cache.SetString("expire_key", "expire_value", time.Second)
@@ -118,7 +143,13 @@ func TestLocalCache_Expiration(t *testing.T) {
 }
 
 func TestLocalCache_ExpireAndTTL(t *testing.T) {
-	cache := NewLocalCache()
+	testConfig := &config.EngineConfig{
+		MaxSize:                   100,
+		MemoryThreshold:           constants.DefaultMemoryThreshold,
+		DefaultExpiration:         0,
+		BackgroundCleanupInterval: 0,
+	}
+	cache := NewLocalCache(testConfig)
 
 	// 设置不过期的值
 	err := cache.SetString("ttl_key", "ttl_value", 0)
@@ -127,7 +158,7 @@ func TestLocalCache_ExpireAndTTL(t *testing.T) {
 	}
 
 	// 设置过期时间
-	success := cache.Expire("ttl_key", time.Minute*5)
+	success := cache.Expire("ttl_key", 5*time.Minute)
 	if !success {
 		t.Fatal("设置过期时间失败")
 	}
@@ -142,13 +173,19 @@ func TestLocalCache_ExpireAndTTL(t *testing.T) {
 		t.Fatal("TTL应该大于0")
 	}
 
-	if ttl > time.Minute*5 {
+	if ttl > 5*time.Minute {
 		t.Fatal("TTL超过预期值")
 	}
 }
 
 func TestLocalCache_Stats(t *testing.T) {
-	cache := NewLocalCache()
+	testConfig := &config.EngineConfig{
+		MaxSize:                   100,
+		MemoryThreshold:           constants.DefaultMemoryThreshold,
+		DefaultExpiration:         0,
+		BackgroundCleanupInterval: 0,
+	}
+	cache := NewLocalCache(testConfig)
 
 	// 初始统计
 	stats := cache.Stats()
@@ -172,12 +209,14 @@ func TestLocalCache_Stats(t *testing.T) {
 }
 
 func TestLocalCache_Configuration(t *testing.T) {
-	// 使用配置创建缓存
-	cache := NewLocalCache(
-		config.WithMaxSize(10),
-		config.WithDefaultExpiration(time.Minute),
-		config.WithMemoryThreshold(0.7),
-	)
+	// 使用配置创建缓存（启用自动清理以测试LRU功能）
+	testConfig := &config.EngineConfig{
+		MaxSize:                   constants.TestCapacity,
+		DefaultExpiration:         time.Minute,
+		MemoryThreshold:           0.7,
+		BackgroundCleanupInterval: time.Minute, // 启用自动清理以测试LRU
+	}
+	cache := NewLocalCache(testConfig)
 
 	// 添加超过限制的键，并访问它们以确保LRU策略正确工作
 	for i := 0; i < 15; i++ {
@@ -208,7 +247,13 @@ func TestLocalCache_Configuration(t *testing.T) {
 
 func TestGlobalCache_BasicOperations(t *testing.T) {
 	// 创建局部缓存实例用于测试全局功能模式
-	testCache := NewLocalCache()
+	testConfig := &config.EngineConfig{
+		MaxSize:                   100,
+		MemoryThreshold:           constants.DefaultMemoryThreshold,
+		DefaultExpiration:         0,
+		BackgroundCleanupInterval: 0,
+	}
+	testCache := NewLocalCache(testConfig)
 
 	// 测试 SetString
 	err := testCache.SetString("global_key", "global_value", 0)
@@ -242,10 +287,13 @@ func TestGlobalCache_BasicOperations(t *testing.T) {
 
 func TestGlobalCache_Configuration(t *testing.T) {
 	// 使用配置初始化缓存
-	testCache := NewLocalCache(
-		config.WithMaxSize(5),
-		config.WithDefaultExpiration(time.Minute*2),
-	)
+	testConfig := &config.EngineConfig{
+		MaxSize:                   5,
+		DefaultExpiration:         2 * time.Minute,
+		MemoryThreshold:           constants.DefaultMemoryThreshold,
+		BackgroundCleanupInterval: 0,
+	}
+	testCache := NewLocalCache(testConfig)
 
 	// 添加键
 	for i := 0; i < 3; i++ {
@@ -266,7 +314,13 @@ func TestGlobalCache_Configuration(t *testing.T) {
 
 func TestGlobalCache_MixedTypes(t *testing.T) {
 	// 创建一个全新的缓存实例进行测试
-	testCache := NewLocalCache()
+	testConfig := &config.EngineConfig{
+		MaxSize:                   100,
+		MemoryThreshold:           constants.DefaultMemoryThreshold,
+		DefaultExpiration:         0,
+		BackgroundCleanupInterval: 0,
+	}
+	testCache := NewLocalCache(testConfig)
 
 	// 设置不同类型的数据
 	testCache.SetString("str_key", "string_value", 0)

@@ -48,11 +48,15 @@ func (o *BaseObject) ExpiresAt() time.Time {
 func (o *BaseObject) IsExpired() bool {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
+	return isExpiredUnsafe(o.expiresAt)
+}
 
-	if o.expiresAt.IsZero() {
+// isExpiredUnsafe 内部过期检查方法（不加锁）
+func isExpiredUnsafe(expiresAt time.Time) bool {
+	if expiresAt.IsZero() {
 		return false
 	}
-	return time.Now().After(o.expiresAt)
+	return time.Now().After(expiresAt)
 }
 
 // UpdateAccess 更新访问时间

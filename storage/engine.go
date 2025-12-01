@@ -1,11 +1,13 @@
 package storage
 
 import (
-	"errors"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/scache-io/scache/config"
 	"github.com/scache-io/scache/interfaces"
+	"github.com/scache-io/scache/internal"
 	"github.com/scache-io/scache/policies/lru"
 	"github.com/scache-io/scache/types"
 )
@@ -15,28 +17,10 @@ type StorageEngine struct {
 	mu        sync.RWMutex
 	data      map[string]interfaces.DataObject
 	policy    interfaces.EvictionPolicy
-	config    *EngineConfig
+	config    *config.EngineConfig
 	stats     *EngineStats
 	stopChan  chan struct{}
 	bgCleanup chan struct{}
-}
-
-// EngineConfig 引擎配置
-type EngineConfig struct {
-	MaxSize                   int           // 最大缓存数量
-	MemoryThreshold           float64       // 内存阈值
-	DefaultExpiration         time.Duration // 默认过期时间
-	BackgroundCleanupInterval time.Duration // 后台清理间隔
-}
-
-// DefaultEngineConfig 默认引擎配置
-func DefaultEngineConfig() *EngineConfig {
-	return &EngineConfig{
-		MaxSize:                   0,               // 无限制
-		MemoryThreshold:           0.8,             // 80%
-		DefaultExpiration:         0,               // 永不过期
-		BackgroundCleanupInterval: 5 * time.Minute, // 5分钟
-	}
 }
 
 // EngineStats 引擎统计
@@ -52,22 +36,22 @@ type EngineStats struct {
 }
 
 // NewStorageEngine 创建新的存储引擎
-func NewStorageEngine(config *EngineConfig) interfaces.StorageEngine {
-	if config == nil {
-		config = DefaultEngineConfig()
+func NewStorageEngine(engineConfig *config.EngineConfig) interfaces.StorageEngine {
+	if engineConfig == nil {
+		engineConfig = config.DefaultEngineConfig()
 	}
 
 	engine := &StorageEngine{
 		data:      make(map[string]interfaces.DataObject),
-		policy:    lru.NewLRUPolicy(config.MaxSize),
-		config:    config,
+		policy:    lru.NewLRUPolicy(engineConfig.MaxSize),
+		config:    engineConfig,
 		stats:     &EngineStats{},
 		stopChan:  make(chan struct{}),
 		bgCleanup: make(chan struct{}),
 	}
 
 	// 启动后台清理
-	if config.BackgroundCleanupInterval > 0 {
+	if engineConfig.BackgroundCleanupInterval > 0 {
 		engine.startBackgroundCleanup()
 	}
 
@@ -76,16 +60,42 @@ func NewStorageEngine(config *EngineConfig) interfaces.StorageEngine {
 
 // Set 存储对象
 func (e *StorageEngine) Set(key string, obj interfaces.DataObject) error {
-	if key == "" {
-		return errors.New("cache key cannot be empty")
+	// 验证参数
+	if err := internal.ValidateCacheKey(key); err != nil {
+		return err
+	}
+
+	// 检查内存可用性（仅在禁用自动清理时进行严格检查）
+	if e.config.BackgroundCleanupInterval == 0 {
+		if err := internal.CheckMemoryAvailability(e.config.MemoryThreshold); err != nil {
+			return fmt.Errorf("memory limit exceeded: %w", err)
+		}
 	}
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	// 检查是否需要淘汰（在设置新键之前）
+	// 检查是否需要淘汰（仅在配置了MaxSize时进行淘汰）
 	if e.config.MaxSize > 0 && len(e.data) >= e.config.MaxSize && e.data[key] == nil {
+		// 如果没有自动清理，则拒绝新数据
+		if e.config.BackgroundCleanupInterval == 0 {
+			return fmt.Errorf("storage capacity exceeded: max size %d reached", e.config.MaxSize)
+		}
 		e.evictOne()
+	}
+
+	// 再次检查内存（添加对象后的预估内存使用）
+	if e.config.BackgroundCleanupInterval == 0 {
+		// 预估新增对象的大小
+		estimatedSize := int64(obj.Size())
+		e.stats.updateMemoryUsage(estimatedSize)
+
+		// 检查是否超过内存阈值
+		if err := internal.CheckMemoryAvailability(e.config.MemoryThreshold); err != nil {
+			// 回滚内存使用统计
+			e.stats.updateMemoryUsage(-estimatedSize)
+			return fmt.Errorf("insufficient memory for new object: %w", err)
+		}
 	}
 
 	e.data[key] = obj
@@ -97,6 +107,7 @@ func (e *StorageEngine) Set(key string, obj interfaces.DataObject) error {
 
 // Get 获取对象
 func (e *StorageEngine) Get(key string) (interfaces.DataObject, bool) {
+	// 验证参数
 	if key == "" {
 		return nil, false
 	}
@@ -125,6 +136,7 @@ func (e *StorageEngine) Get(key string) (interfaces.DataObject, bool) {
 
 // Delete 删除对象
 func (e *StorageEngine) Delete(key string) bool {
+	// 验证参数
 	if key == "" {
 		return false
 	}
@@ -132,7 +144,12 @@ func (e *StorageEngine) Delete(key string) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if _, exists := e.data[key]; exists {
+	if obj, exists := e.data[key]; exists {
+		// 更新内存使用统计（如果启用了内存管理）
+		if e.config.BackgroundCleanupInterval == 0 {
+			e.stats.updateMemoryUsage(-int64(obj.Size()))
+		}
+
 		delete(e.data, key)
 		e.policy.Delete(key)
 		e.stats.recordDelete()
@@ -144,6 +161,7 @@ func (e *StorageEngine) Delete(key string) bool {
 
 // Exists 检查键是否存在
 func (e *StorageEngine) Exists(key string) bool {
+	// 验证参数
 	if key == "" {
 		return false
 	}
@@ -243,6 +261,11 @@ func (e *StorageEngine) Expire(key string, ttl time.Duration) bool {
 
 // TTL 获取剩余生存时间
 func (e *StorageEngine) TTL(key string) (time.Duration, bool) {
+	// 验证参数
+	if key == "" {
+		return -1, false
+	}
+
 	e.mu.RLock()
 	obj, exists := e.data[key]
 	e.mu.RUnlock()
@@ -251,16 +274,7 @@ func (e *StorageEngine) TTL(key string) (time.Duration, bool) {
 		return -1, false
 	}
 
-	if obj.ExpiresAt().IsZero() {
-		return -1, true // 永不过期
-	}
-
-	remaining := time.Until(obj.ExpiresAt())
-	if remaining <= 0 {
-		return 0, true // 已过期
-	}
-
-	return remaining, true
+	return internal.CalculateRemainingTTL(obj.ExpiresAt())
 }
 
 // Stats 获取统计信息
@@ -323,7 +337,7 @@ func (e *StorageEngine) cleanupExpired() {
 }
 
 // GetConfig 获取引擎配置
-func (e *StorageEngine) GetConfig() *EngineConfig {
+func (e *StorageEngine) GetConfig() *config.EngineConfig {
 	return e.config
 }
 
@@ -390,4 +404,11 @@ func (s *EngineStats) reset() {
 	s.deletes = 0
 	s.evictions = 0
 	s.expirations = 0
+}
+
+// updateMemoryUsage 更新内存使用统计
+func (s *EngineStats) updateMemoryUsage(delta int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.memoryUsage += delta
 }

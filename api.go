@@ -6,14 +6,15 @@ import (
 
 	"github.com/scache-io/scache/cache"
 	"github.com/scache-io/scache/config"
+	"github.com/scache-io/scache/constants"
 )
 
 // LocalCache 局部缓存封装的别名，方便外部使用
 type LocalCache = cache.LocalCache
 
 // New 创建新的局部缓存实例
-func New(opts ...config.EngineOption) *LocalCache {
-	return cache.NewLocalCache(opts...)
+func New(engineConfig *config.EngineConfig) *LocalCache {
+	return cache.NewLocalCache(engineConfig)
 }
 
 // 全局默认实例
@@ -25,16 +26,22 @@ var (
 // GetGlobalCache 获取全局缓存实例（线程安全）
 func GetGlobalCache() *LocalCache {
 	globalOnce.Do(func() {
-		// 初始化默认实例，使用中等配置
-		globalCache = New(config.MediumConfig...)
+		// 创建中等配置
+		mediumConfig := &config.EngineConfig{
+			MaxSize:                   constants.MediumCapacity,
+			MemoryThreshold:           constants.MediumMemoryThreshold,
+			DefaultExpiration:         constants.TwoHours,
+			BackgroundCleanupInterval: constants.TenMinutes,
+		}
+		globalCache = New(mediumConfig)
 	})
 	return globalCache
 }
 
 // InitGlobalCache 初始化全局缓存（可配置）
-func InitGlobalCache(opts ...config.EngineOption) {
+func InitGlobalCache(engineConfig *config.EngineConfig) {
 	globalOnce.Do(func() {
-		globalCache = New(opts...)
+		globalCache = New(engineConfig)
 	})
 }
 

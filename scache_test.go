@@ -3,6 +3,8 @@ package scache
 import (
 	"testing"
 	"time"
+
+	"github.com/scache-io/scache/config"
 )
 
 func TestGlobalStringOperations(t *testing.T) {
@@ -132,7 +134,13 @@ func TestLocalCacheOperations(t *testing.T) {
 	Flush()
 
 	// 测试局部缓存
-	localCache := New()
+	testConfig := &config.EngineConfig{
+		MaxSize:                   100,
+		MemoryThreshold:           0.8,
+		DefaultExpiration:         0,
+		BackgroundCleanupInterval: 0,
+	}
+	localCache := New(testConfig)
 
 	err := localCache.SetString("local_key", "local_value", time.Minute)
 	if err != nil {
