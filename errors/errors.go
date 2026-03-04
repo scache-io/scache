@@ -1,4 +1,4 @@
-package scache
+package errors
 
 import "errors"
 

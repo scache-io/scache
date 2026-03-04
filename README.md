@@ -193,6 +193,50 @@ func main() {
 }
 ```
 
+## 📦 导入方式
+
+### 推荐方式（v2.0+）
+
+```go
+// 导入 pkg 包
+import scache "github.com/scache-io/scache/pkg"
+
+// 使用
+cache := scache.New(config.MediumConfig...)
+scache.SetString("key", "value", time.Hour)
+```
+
+### 向后兼容方式（保持原有 API）
+
+```go
+// 导入根目录包（自动重新导出 pkg 内容）
+import "github.com/scache-io/scache"
+
+// 使用方式不变
+cache := scache.New(config.MediumConfig...)
+scache.SetString("key", "value", time.Hour)
+```
+
+### API 迁移指南
+
+**从旧版本迁移到 v2.0**：
+
+1. 更新导入路径（可选，旧方式仍然支持）：
+   ```go
+   // 旧方式（仍然有效）
+   import "github.com/scache-io/scache"
+
+   // 新方式（推荐）
+   import scache "github.com/scache-io/scache/pkg"
+   ```
+
+2. API 完全兼容，无需修改代码
+
+3. 功能增强：
+   - 更清晰的代码结构
+   - 更好的类型安全
+   - 更高的可维护性
+
 ## 🎛️ 命令行选项
 
 ### 基本选项
@@ -281,6 +325,62 @@ scache gen --generic -exclude "vendor,test,docs"
 - ⚠️ **旧项目兼容** → 使用传统版本
 - ⚠️ **Go < 1.18** → 使用传统版本
 
+## 📁 项目结构
+
+```
+scache/
+├── cmd/scache/              # 命令行工具
+│   ├── main.go
+│   ├── generator/           # 代码生成器
+│   └── go.mod
+│
+├── pkg/                     # 公共 API 层
+│   ├── api/                 # API 实现
+│   │   ├── global.go        # 全局缓存 API
+│   │   └── local.go         # 本地缓存 API
+│   └── scache.go            # 包入口
+│
+├── cache/                   # 缓存核心
+│   ├── cache.go
+│   └── cache_test.go
+│
+├── storage/                 # 存储引擎
+│   ├── engine.go
+│   └── *_test.go
+│
+├── types/                   # 数据类型
+│   ├── data_objects.go
+│   └── *_test.go
+│
+├── policies/                # 淘汰策略
+│   └── lru/
+│       ├── lru.go
+│       └── lru_test.go
+│
+├── config/                  # 配置
+│   └── engine_config.go
+│
+├── constants/               # 常量
+│   └── cache_constants.go
+│
+├── errors/                  # 错误定义
+│   └── errors.go
+│
+├── utils/                   # 工具函数
+│   ├── ttl_helper.go
+│   ├── type_helper.go
+│   └── validation.go
+│
+├── internal/                # 内部包
+│   └── memory_checker.go   # 内存监控
+│
+├── interfaces/              # 接口定义
+│   └── interfaces.go
+│
+├── scache_export.go         # 向后兼容导出
+└── scache_test.go          # 根目录测试
+```
+
 ## 🎯 缓存功能
 
 ### TTL过期机制 & LRU淘汰策略
@@ -309,7 +409,10 @@ package main
 import (
     "fmt"
     "time"
-    "github.com/scache-io/scache"
+
+    scache "github.com/scache-io/scache/pkg"  // 推荐方式
+    // 或
+    // "github.com/scache-io/scache"  // 向后兼容
     "github.com/scache-io/scache/config"
 )
 
@@ -385,7 +488,10 @@ package main
 import (
     "fmt"
     "time"
-    "github.com/scache-io/scache"
+
+    scache "github.com/scache-io/scache/pkg"  // 推荐方式
+    // 或
+    // "github.com/scache-io/scache"  // 向后兼容
     "github.com/scache-io/scache/config"
 )
 
@@ -613,6 +719,11 @@ go test -bench=. ./cache
 - 🔄 优化文件生成逻辑，支持覆盖写入
 - 📚 改进文档和使用示例
 - 🗂️ 重构代码结构，更清晰的组织方式
+  - 新增 `pkg/` 公共 API 层
+  - 新增 `errors/` 独立错误包
+  - 新增 `utils/` 工具函数包
+  - 优化 `internal/` 包的使用规范
+  - 保持完全向后兼容
 
 ### v1.x.x
 - 🎉 初始版本发布

@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/scache-io/scache/config"
-	"github.com/scache-io/scache/interfaces"
 	"github.com/scache-io/scache/internal"
+	"github.com/scache-io/scache/interfaces"
 	"github.com/scache-io/scache/policies/lru"
 	"github.com/scache-io/scache/types"
+	"github.com/scache-io/scache/utils"
 )
 
 // StorageEngine 存储引擎实现
@@ -61,7 +62,7 @@ func NewStorageEngine(engineConfig *config.EngineConfig) interfaces.StorageEngin
 // Set 存储对象
 func (e *StorageEngine) Set(key string, obj interfaces.DataObject) error {
 	// 验证参数
-	if err := internal.ValidateCacheKey(key); err != nil {
+	if err := utils.ValidateCacheKey(key); err != nil {
 		return err
 	}
 
@@ -274,7 +275,7 @@ func (e *StorageEngine) TTL(key string) (time.Duration, bool) {
 		return -1, false
 	}
 
-	return internal.CalculateRemainingTTL(obj.ExpiresAt())
+	return utils.CalculateRemainingTTL(obj.ExpiresAt())
 }
 
 // Stats 获取统计信息

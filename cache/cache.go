@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/scache-io/scache/config"
-	"github.com/scache-io/scache/internal"
 	"github.com/scache-io/scache/interfaces"
 	"github.com/scache-io/scache/storage"
 	"github.com/scache-io/scache/types"
+	"github.com/scache-io/scache/utils"
 )
 
 // NewEngine 创建新的存储引擎实例
@@ -31,7 +31,7 @@ func NewLocalCache(engineConfig *config.EngineConfig) *LocalCache {
 
 // SetString 设置字符串值
 func (c *LocalCache) SetString(key, value string, ttl ...time.Duration) error {
-	obj := types.NewStringObject(value, internal.ParseTTL(ttl))
+	obj := types.NewStringObject(value, utils.ParseTTL(ttl))
 	return c.engine.Set(key, obj)
 }
 
@@ -42,12 +42,12 @@ func (c *LocalCache) GetString(key string) (string, bool) {
 		return "", false
 	}
 
-	return internal.ExtractStringValue(obj)
+	return utils.ExtractStringValue(obj)
 }
 
 // SetList 设置列表值
 func (c *LocalCache) SetList(key string, values []interface{}, ttl ...time.Duration) error {
-	obj := types.NewListObject(values, internal.ParseTTL(ttl))
+	obj := types.NewListObject(values, utils.ParseTTL(ttl))
 	return c.engine.Set(key, obj)
 }
 
@@ -58,12 +58,12 @@ func (c *LocalCache) GetList(key string) ([]interface{}, bool) {
 		return nil, false
 	}
 
-	return internal.ExtractListValue(obj)
+	return utils.ExtractListValue(obj)
 }
 
 // SetHash 设置哈希值
 func (c *LocalCache) SetHash(key string, fields map[string]interface{}, ttl ...time.Duration) error {
-	obj := types.NewHashObject(fields, internal.ParseTTL(ttl))
+	obj := types.NewHashObject(fields, utils.ParseTTL(ttl))
 	return c.engine.Set(key, obj)
 }
 
@@ -74,7 +74,7 @@ func (c *LocalCache) GetHash(key string) (map[string]interface{}, bool) {
 		return nil, false
 	}
 
-	return internal.ExtractHashValue(obj)
+	return utils.ExtractHashValue(obj)
 }
 
 // Store 存储结构体值（JSON序列化，支持指针和非指针类型）
@@ -84,14 +84,14 @@ func (c *LocalCache) Store(key string, obj interface{}, ttl ...time.Duration) er
 		return err
 	}
 
-	stringObj := types.NewStringObject(string(jsonBytes), internal.ParseTTL(ttl))
+	stringObj := types.NewStringObject(string(jsonBytes), utils.ParseTTL(ttl))
 	return c.engine.Set(key, stringObj)
 }
 
 // Load 加载结构体值（JSON反序列化，要求指针参数）
 func (c *LocalCache) Load(key string, dest interface{}) error {
 	// 验证参数
-	if err := internal.ValidatePointerArgument(dest); err != nil {
+	if err := utils.ValidatePointerArgument(dest); err != nil {
 		return err
 	}
 
@@ -100,7 +100,7 @@ func (c *LocalCache) Load(key string, dest interface{}) error {
 		return fmt.Errorf("key not found: %s", key)
 	}
 
-	jsonData, ok := internal.ExtractStructValue(obj)
+	jsonData, ok := utils.ExtractStructValue(obj)
 	if !ok {
 		return fmt.Errorf("type mismatch")
 	}
