@@ -22,28 +22,18 @@ func main() {
 		Short: "Go 结构体缓存代码生成工具",
 		Long: `SCache 是一个智能的 Go 结构体缓存代码生成工具，自动扫描项目中的结构体并生成对应的缓存操作方法。
 
-🚀 核心特性:
-  • 智能代码生成 - 自动扫描Go结构体，生成懒汉式单例缓存方法
-  • 泛型支持 - 基于Go 1.18+泛型，代码更简洁、类型更安全（推荐）
-  • 传统版本 - 兼容旧版Go，完整的缓存功能
-  • TTL过期机制 - 支持灵活的缓存过期时间设置
-  • LRU淘汰策略 - 智能的缓存淘汰机制，支持容量限制
-  • 多种数据类型 - 支持String、List、Hash、Struct等数据类型
-  • 线程安全 - 内置锁机制，支持并发访问
-  • 高性能 - 基于内存存储，读写性能优异
-
-📋 支持的命令:
+支持的命令:
   gen     生成结构体缓存代码（默认命令）
   version 显示版本信息
   help    显示帮助信息
 
-💡 快速开始:
+快速开始:
   scache gen -g                     # 生成泛型版本缓存代码（推荐，快捷方式）
   scache gen --generic              # 生成泛型版本缓存代码（完整方式）
   scache gen -dir ./models          # 指定目录生成
   scache gen -structs User,Product  # 只生成指定结构体
 
-📖 更多帮助:
+更多帮助:
   scache gen --help                 # 查看gen命令的详细选项
   scache [command] --help           # 查看特定命令的帮助`,
 		Version: version,
