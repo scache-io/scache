@@ -4,9 +4,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/scache-io/scache/cache"
 	"github.com/scache-io/scache/config"
 	"github.com/scache-io/scache/constants"
 )
+
+// LocalCache 局部缓存封装的别名，方便外部使用
+type LocalCache = cache.LocalCache
+
+// New 创建新的局部缓存实例
+func New(engineConfig *config.EngineConfig) *LocalCache {
+	return cache.NewLocalCache(engineConfig)
+}
 
 // 全局默认实例
 var (
