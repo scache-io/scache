@@ -4,11 +4,23 @@ import (
 	"container/list"
 	"sync"
 
-	"github.com/scache-io/scache/constants"
 	"github.com/scache-io/scache/interfaces"
 )
 
 // 本包实现了LRU（Least Recently Used）缓存淘汰策略
+
+// noopPolicy 无操作策略（当容量 <= 0 时使用，禁用淘汰）
+type noopPolicy struct{}
+
+func (n *noopPolicy) Access(key string)          {}
+func (n *noopPolicy) Set(key string)             {}
+func (n *noopPolicy) Delete(key string)          {}
+func (n *noopPolicy) Evict() string              { return "" }
+func (n *noopPolicy) Size() int                  { return 0 }
+func (n *noopPolicy) Clear()                     {}
+func (n *noopPolicy) Contains(key string) bool   { return false }
+func (n *noopPolicy) Keys() []string             { return nil }
+func (n *noopPolicy) UpdateCapacity(capacity int) {}
 
 // lruPolicy LRU淘汰策略的实现结构体
 type lruPolicy struct {
@@ -24,10 +36,10 @@ type lruNode struct {
 }
 
 // NewLRUPolicy 创建一个新的LRU淘汰策略实例
-// capacity: 缓存容量，如果小于等于0则使用默认值
+// capacity: 缓存容量，如果小于等于0则禁用淘汰策略
 func NewLRUPolicy(capacity int) interfaces.EvictionPolicy {
 	if capacity <= 0 {
-		capacity = constants.DefaultLRUCapacity // 使用默认容量
+		return &noopPolicy{} // 容量 <= 0 时禁用淘汰
 	}
 
 	return &lruPolicy{

@@ -124,7 +124,7 @@ func (e *StorageEngine) Get(key string) (interfaces.DataObject, bool) {
 
 	// 检查过期
 	if obj.IsExpired() {
-		go e.Delete(key)
+		e.deleteExpired(key)
 		e.stats.recordMiss()
 		e.stats.recordExpiration()
 		return nil, false
@@ -133,6 +133,17 @@ func (e *StorageEngine) Get(key string) (interfaces.DataObject, bool) {
 	e.policy.Access(key)
 	e.stats.recordHit()
 	return obj, true
+}
+
+// deleteExpired 同步删除过期键（避免竞态条件）
+func (e *StorageEngine) deleteExpired(key string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if obj, exists := e.data[key]; exists && obj.IsExpired() {
+		delete(e.data, key)
+		e.policy.Delete(key)
+	}
 }
 
 // Delete 删除对象
@@ -176,7 +187,7 @@ func (e *StorageEngine) Exists(key string) bool {
 	}
 
 	if obj.IsExpired() {
-		go e.Delete(key)
+		e.deleteExpired(key)
 		return false
 	}
 
@@ -224,7 +235,7 @@ func (e *StorageEngine) Type(key string) (interfaces.DataType, bool) {
 	}
 
 	if obj.IsExpired() {
-		go e.Delete(key)
+		e.deleteExpired(key)
 		return "", false
 	}
 
