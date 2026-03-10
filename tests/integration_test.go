@@ -1,11 +1,11 @@
-package scache_test
+package tests
 
 import (
 	"sync"
 	"testing"
 	"time"
 
-	scache "github.com/scache-io/scache"
+	"github.com/scache-io/scache"
 	"github.com/scache-io/scache/config"
 )
 
