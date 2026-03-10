@@ -72,4 +72,7 @@ local.*
 .claude
 CLAUDE.md
 
+# AI assistant memory (local only)
+MEMORY.md
+
 *.tar.gz
