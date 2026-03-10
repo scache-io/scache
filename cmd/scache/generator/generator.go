@@ -310,23 +310,18 @@ func generatePackageFile(filePath, content string) error {
 
 	// 检查文件是否已存在，如果存在则先删除
 	if _, err := os.Stat(filePath); err == nil {
-		fmt.Printf("🗑️  删除现有缓存文件: %s\n", filePath)
 		if removeErr := os.Remove(filePath); removeErr != nil {
-			return fmt.Errorf("删除现有文件失败: %w", removeErr)
+			return fmt.Errorf("failed to remove existing file: %w", removeErr)
 		}
 	}
 
 	// 写入文件
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
-		return fmt.Errorf("写入文件失败: %w", err)
+		return fmt.Errorf("failed to write file: %w", err)
 	}
 
 	// 格式化生成的文件
-	if err := formatGoFile(filePath); err != nil {
-		fmt.Printf("格式化文件失败: %v\n", err)
-	} else {
-		fmt.Printf("生成并格式化缓存文件: %s\n", filePath)
-	}
+	_ = formatGoFile(filePath) // Ignore format errors
 
 	return nil
 }

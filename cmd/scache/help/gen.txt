@@ -1,17 +1,17 @@
-自动扫描项目中的 Go 结构体，生成对应的缓存操作方法。
+Automatically scan Go structs and generate cache methods.
 
-支持两种版本:
-  泛型版本 (推荐): 代码更简洁，类型更安全，需要 Go 1.18+
-  传统版本: 兼容旧版 Go，功能完整
+Two versions:
+  Generic (recommended): Cleaner code, type-safe, requires Go 1.18+
+  Classic: Compatible with older Go versions
 
-生成的代码包含:
-  - 懒汉式单例缓存实例
-  - Store/Load/Delete 等核心方法
-  - TTL 过期时间管理
-  - 缓存统计和清理功能
+Generated code includes:
+  - Lazy singleton cache instance
+  - Store/Load/Delete methods
+  - TTL management
+  - Cache stats and cleanup
 
-使用示例:
-  scache gen -g                     # 生成泛型版本（推荐）
-  scache gen -dir ./models          # 指定目录生成
-  scache gen -structs User,Product  # 只生成指定结构体
-  scache gen -g -exclude "test"     # 排除测试目录
+Examples:
+  scache gen -g                     # Generic version (recommended)
+  scache gen -dir ./models          # Specify directory
+  scache gen -structs User,Product  # Specific structs
+  scache gen -g -exclude "test"     # Exclude directories
