@@ -54,7 +54,7 @@ func Generate(config *Config) error {
 	}
 
 	if len(structs) == 0 {
-		return fmt.Errorf("No structs found")
+		return fmt.Errorf("no structs found")
 	}
 
 	// Filter specified structs
@@ -73,7 +73,7 @@ func Generate(config *Config) error {
 	}
 
 	if len(structs) == 0 {
-		return fmt.Errorf("Specified structs not found")
+		return fmt.Errorf("specified structs not found")
 	}
 
 	// Record number of generated structs
@@ -267,7 +267,7 @@ func generatePackageScache(config *Config, pkgName string, structs []StructInfo)
 	// Generate package code
 	content, err := generatePackageCode(pkgName, structs, config.UseGeneric)
 	if err != nil {
-		return fmt.Errorf("Failed to generate code: %w", err)
+		return fmt.Errorf("failed to generate code: %w", err)
 	}
 
 	// Write file
@@ -308,7 +308,7 @@ func generatePackageCode(pkgName string, structs []StructInfo, useGeneric bool) 
 	// Load embedded template
 	tmpl, err := loadTemplate(useGeneric)
 	if err != nil {
-		return "", fmt.Errorf("Failed to load template: %w", err)
+		return "", fmt.Errorf("failed to load template: %w", err)
 	}
 
 	data := TemplateData{
@@ -318,7 +318,7 @@ func generatePackageCode(pkgName string, structs []StructInfo, useGeneric bool) 
 
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", fmt.Errorf("Failed to execute template: %w", err)
+		return "", fmt.Errorf("failed to execute template: %w", err)
 	}
 
 	return buf.String(), nil
@@ -329,7 +329,7 @@ func generatePackageFile(filePath, content string) error {
 	// Ensure directory exists
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("Failed to create directory: %w", err)
+		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Check if file exists, delete if it does
