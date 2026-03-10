@@ -9,10 +9,10 @@ import (
 	"github.com/scache-io/scache/constants"
 )
 
-// LocalCache 局部缓存封装的别名，方便外部使用
+// LocalCache Local cache wrapper的别名，方便外部使用
 type LocalCache = cache.LocalCache
 
-// New 创建新的局部缓存实例
+// New 创建新的Local cache instance
 func New(engineConfig *config.EngineConfig) *LocalCache {
 	return cache.NewLocalCache(engineConfig)
 }
@@ -38,64 +38,64 @@ func GetGlobalCache() *LocalCache {
 	return globalCache
 }
 
-// InitGlobalCache 初始化全局缓存（可配置）
+// InitGlobalCache Initialize全局缓存（可配置）
 func InitGlobalCache(engineConfig *config.EngineConfig) {
 	globalOnce.Do(func() {
 		globalCache = New(engineConfig)
 	})
 }
 
-// SetString 全局设置字符串值
+// SetString 全局Set string value
 func SetString(key, value string, ttl ...time.Duration) error {
 	return GetGlobalCache().SetString(key, value, ttl...)
 }
 
-// GetString 全局获取字符串值
+// GetString 全局Get string value
 func GetString(key string) (string, bool) {
 	return GetGlobalCache().GetString(key)
 }
 
-// SetList 全局设置列表值
+// SetList 全局Set list value
 func SetList(key string, values []interface{}, ttl ...time.Duration) error {
 	return GetGlobalCache().SetList(key, values, ttl...)
 }
 
-// GetList 全局获取列表值
+// GetList 全局Get list value
 func GetList(key string) ([]interface{}, bool) {
 	return GetGlobalCache().GetList(key)
 }
 
-// SetHash 全局设置哈希值
+// SetHash 全局Set hash value
 func SetHash(key string, fields map[string]interface{}, ttl ...time.Duration) error {
 	return GetGlobalCache().SetHash(key, fields, ttl...)
 }
 
-// GetHash 全局获取哈希值
+// GetHash 全局Get hash value
 func GetHash(key string) (map[string]interface{}, bool) {
 	return GetGlobalCache().GetHash(key)
 }
 
-// Store 全局存储结构体值（JSON序列化，支持指针和非指针类型）
+// Store 全局Store struct值（JSON序列化，支持指针和非指针Type）
 func Store(key string, obj interface{}, ttl ...time.Duration) error {
 	return GetGlobalCache().Store(key, obj, ttl...)
 }
 
-// Load 全局加载结构体值（JSON反序列化，要求指针参数）
+// Load 全局Load struct值（JSON反序列化，要求指针Parameter）
 func Load(key string, dest interface{}) error {
 	return GetGlobalCache().Load(key, dest)
 }
 
-// Delete 全局删除键
+// Delete 全局Delete key
 func Delete(key string) bool {
 	return GetGlobalCache().Delete(key)
 }
 
-// Exists 全局检查键是否存在
+// Exists 全局Check if key exists
 func Exists(key string) bool {
 	return GetGlobalCache().Exists(key)
 }
 
-// Keys 全局获取所有键
+// Keys 全局Get all keys
 func Keys() []string {
 	return GetGlobalCache().Keys()
 }
@@ -105,12 +105,12 @@ func Flush() error {
 	return GetGlobalCache().Flush()
 }
 
-// Size 全局获取缓存大小
+// Size 全局Get cache size
 func Size() int {
 	return GetGlobalCache().Size()
 }
 
-// Expire 全局设置过期时间
+// Expire 全局Set expiration time
 func Expire(key string, ttl time.Duration) bool {
 	return GetGlobalCache().Expire(key, ttl)
 }
@@ -120,7 +120,7 @@ func TTL(key string) (time.Duration, bool) {
 	return GetGlobalCache().TTL(key)
 }
 
-// Stats 全局获取统计信息
+// Stats 全局Get statistics
 func Stats() interface{} {
 	return GetGlobalCache().Stats()
 }

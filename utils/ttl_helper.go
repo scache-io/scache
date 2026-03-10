@@ -2,8 +2,8 @@ package utils
 
 import "time"
 
-// ParseTTL 解析可选的TTL参数
-// 统一处理可选TTL参数的逻辑，避免代码重复
+// ParseTTL 解析可选的TTLParameter
+// 统一处理可选TTLParameter的逻辑，避免代码重复
 func ParseTTL(ttl []time.Duration) time.Duration {
 	if len(ttl) > 0 {
 		return ttl[0]

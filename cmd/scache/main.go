@@ -42,12 +42,12 @@ func main() {
 	rootCmd.AddCommand(newGenCmd())
 	rootCmd.AddCommand(newVersionCmd())
 
-	// 默认执行 gen
+	// Default to gen command
 	if len(os.Args) == 1 {
 		os.Args = append(os.Args, "gen")
 	}
 
-	// 禁用 Cobra 的自动错误输出，我们自己处理
+	// Disable Cobra's automatic error output, handle ourselves
 	rootCmd.SilenceErrors = true
 	rootCmd.SilenceUsage = true
 

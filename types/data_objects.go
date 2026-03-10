@@ -7,7 +7,7 @@ import (
 	"github.com/scache-io/scache/interfaces"
 )
 
-// BaseObject 基础对象实现
+// BaseObject Base object implementation
 type BaseObject struct {
 	dataType  interfaces.DataType
 	expiresAt time.Time
@@ -16,7 +16,7 @@ type BaseObject struct {
 	mu        sync.RWMutex
 }
 
-// NewBaseObject 创建基础对象
+// NewBaseObject Create base object
 func NewBaseObject(dataType interfaces.DataType, ttl time.Duration) *BaseObject {
 	now := time.Now()
 	var expiresAt time.Time
@@ -32,26 +32,26 @@ func NewBaseObject(dataType interfaces.DataType, ttl time.Duration) *BaseObject 
 	}
 }
 
-// Type 返回数据类型
+// Type 返回Data type
 func (o *BaseObject) Type() interfaces.DataType {
 	return o.dataType
 }
 
-// ExpiresAt 返回过期时间
+// ExpiresAt Return expiration time
 func (o *BaseObject) ExpiresAt() time.Time {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 	return o.expiresAt
 }
 
-// IsExpired 检查是否过期
+// IsExpired Check if expired
 func (o *BaseObject) IsExpired() bool {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 	return isExpiredUnsafe(o.expiresAt)
 }
 
-// isExpiredUnsafe 内部过期检查方法（不加锁）
+// isExpiredUnsafe 内部过期检查Method（不加锁）
 func isExpiredUnsafe(expiresAt time.Time) bool {
 	if expiresAt.IsZero() {
 		return false
@@ -73,14 +73,14 @@ func (o *BaseObject) CreatedAt() time.Time {
 	return o.created
 }
 
-// StringObject 字符串对象实现
+// StringObject String object实现
 type StringObject struct {
 	*BaseObject
 	value string
 	mu    sync.RWMutex
 }
 
-// NewStringObject 创建字符串对象
+// NewStringObject 创建String object
 func NewStringObject(value string, ttl time.Duration) *StringObject {
 	return &StringObject{
 		BaseObject: NewBaseObject(interfaces.DataTypeString, ttl),
@@ -96,7 +96,7 @@ func (s *StringObject) Value() string {
 	return s.value
 }
 
-// Set 设置字符串值
+// Set Set string value
 func (s *StringObject) Set(value string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -104,12 +104,12 @@ func (s *StringObject) Set(value string) {
 	s.UpdateAccess()
 }
 
-// StructObject 结构体对象实现（复用StringObject，增加JSON支持）
+// StructObject Struct object实现（复用StringObject，增加JSON支持）
 type StructObject struct {
 	*StringObject
 }
 
-// NewStructObject 创建结构体对象
+// NewStructObject 创建Struct object
 func NewStructObject(data string, ttl time.Duration) *StructObject {
 	return &StructObject{
 		StringObject: NewStringObject(data, ttl),
@@ -126,21 +126,21 @@ func (s *StructObject) Set(data string) {
 	s.StringObject.Set(data)
 }
 
-// Size 返回对象大小（字节）
+// Size Return object size（字节）
 func (s *StringObject) Size() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.value)
 }
 
-// ListObject 列表对象实现
+// ListObject List object实现
 type ListObject struct {
 	*BaseObject
 	values []interface{}
 	mu     sync.RWMutex
 }
 
-// NewListObject 创建列表对象
+// NewListObject 创建List object
 func NewListObject(values []interface{}, ttl time.Duration) *ListObject {
 	return &ListObject{
 		BaseObject: NewBaseObject(interfaces.DataTypeList, ttl),
@@ -227,21 +227,21 @@ func (l *ListObject) Len() int {
 	return len(l.values)
 }
 
-// Size 返回对象大小
+// Size Return object size
 func (l *ListObject) Size() int {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	return len(l.values) * 8 // 估算每个元素8字节
 }
 
-// HashObject 哈希对象实现
+// HashObject Hash object实现
 type HashObject struct {
 	*BaseObject
 	fields map[string]interface{}
 	mu     sync.RWMutex
 }
 
-// NewHashObject 创建哈希对象
+// NewHashObject 创建Hash object
 func NewHashObject(fields map[string]interface{}, ttl time.Duration) *HashObject {
 	if fields == nil {
 		fields = make(map[string]interface{})
@@ -307,7 +307,7 @@ func (h *HashObject) Len() int {
 	return len(h.fields)
 }
 
-// Size 返回对象大小
+// Size Return object size
 func (h *HashObject) Size() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()

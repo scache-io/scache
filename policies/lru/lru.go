@@ -7,9 +7,9 @@ import (
 	"github.com/scache-io/scache/interfaces"
 )
 
-// 本包实现了LRU（Least Recently Used）缓存淘汰策略
+// 本包实现了LRU（Least Recently Used）缓存Eviction policy
 
-// noopPolicy 无操作策略（当容量 <= 0 时使用，禁用淘汰）
+// noopPolicy No-op policy（Used when capacity <= 0, disable eviction）
 type noopPolicy struct{}
 
 func (n *noopPolicy) Access(key string)           {}
@@ -22,21 +22,21 @@ func (n *noopPolicy) Contains(key string) bool    { return false }
 func (n *noopPolicy) Keys() []string              { return nil }
 func (n *noopPolicy) UpdateCapacity(capacity int) {}
 
-// lruPolicy LRU淘汰策略的实现结构体
+// lruPolicy LRUEviction policy的实现Struct
 type lruPolicy struct {
-	capacity int                      // 缓存容量
-	cache    map[string]*list.Element // 键到链表节点的映射，用于O(1)查找
-	list     *list.List               // 双向链表，头部为最近使用，尾部为最久未使用
-	mu       sync.RWMutex             // 读写锁，保护并发访问
+	capacity int                      // Cache capacity
+	cache    map[string]*list.Element // Map from key to list element，用于O(1)查找
+	list     *list.List               // Doubly linked list，头部为最近使用，尾部为最久未使用
+	mu       sync.RWMutex             // Read-write lock，保护并发访问
 }
 
-// lruNode 链表中存储的节点数据
+// lruNode Node data stored in list
 type lruNode struct {
-	key string // 缓存键
+	key string // Cache key
 }
 
-// NewLRUPolicy 创建一个新的LRU淘汰策略实例
-// capacity: 缓存容量，如果小于等于0则禁用淘汰策略
+// NewLRUPolicy 创建一个新的LRUEviction policy实例
+// capacity: Cache capacity，如果小于等于0则禁用Eviction policy
 func NewLRUPolicy(capacity int) interfaces.EvictionPolicy {
 	if capacity <= 0 {
 		return &noopPolicy{} // 容量 <= 0 时禁用淘汰
@@ -44,8 +44,8 @@ func NewLRUPolicy(capacity int) interfaces.EvictionPolicy {
 
 	return &lruPolicy{
 		capacity: capacity,
-		cache:    make(map[string]*list.Element), // 初始化映射表
-		list:     list.New(),                     // 初始化双向链表
+		cache:    make(map[string]*list.Element), // Initialize map
+		list:     list.New(),                     // InitializeDoubly linked list
 	}
 }
 
@@ -79,7 +79,7 @@ func (l *lruPolicy) Delete(key string) {
 
 	if elem, exists := l.cache[key]; exists {
 		l.list.Remove(elem)  // 从链表中移除节点
-		delete(l.cache, key) // 从映射表中删除键
+		delete(l.cache, key) // 从映射表中Delete key
 	}
 }
 
@@ -91,7 +91,7 @@ func (l *lruPolicy) Evict() string {
 	return l.evictInternal()
 }
 
-// evictInternal 内部淘汰方法，必须在持有锁的情况下调用
+// evictInternal 内部淘汰Method，必须在持有锁的情况下调用
 func (l *lruPolicy) evictInternal() string {
 	if l.list.Len() == 0 {
 		return "" // 空缓存，无需淘汰
@@ -139,7 +139,7 @@ func (l *lruPolicy) Contains(key string) bool {
 	return exists
 }
 
-// UpdateCapacity 更新缓存容量，如果新容量小于当前条目数，则淘汰多余的条目
+// UpdateCapacity 更新Cache capacity，如果新容量小于当前条目数，则淘汰多余的条目
 func (l *lruPolicy) UpdateCapacity(newCapacity int) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -156,7 +156,7 @@ func (l *lruPolicy) UpdateCapacity(newCapacity int) {
 	}
 }
 
-// Clear 清空缓存中的所有条目
+// Clear Clear cache中的所有条目
 func (l *lruPolicy) Clear() {
 	l.mu.Lock()
 	defer l.mu.Unlock()

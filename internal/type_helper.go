@@ -41,9 +41,9 @@ func ExtractHashValue(obj interfaces.DataObject) (map[string]interface{}, bool) 
 	return nil, false
 }
 
-// ExtractStructValue 从数据对象中提取结构体值（JSON字符串）
+// ExtractStructValue 从数据对象中Extract structs值（JSON字符串）
 func ExtractStructValue(obj interfaces.DataObject) (string, bool) {
-	// 结构体对象底层是StringObject，所以检查字符串类型
+	// Struct object底层是StringObject，所以检查字符串Type
 	if obj.Type() != interfaces.DataTypeString {
 		return "", false
 	}
@@ -54,7 +54,7 @@ func ExtractStructValue(obj interfaces.DataObject) (string, bool) {
 	return "", false
 }
 
-// IsDataTypeCompatible 检查数据类型是否兼容
+// IsDataTypeCompatible 检查Data type是否兼容
 func IsDataTypeCompatible(obj interfaces.DataObject, expectedType interfaces.DataType) bool {
 	return obj.Type() == expectedType
 }

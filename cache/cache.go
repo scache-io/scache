@@ -12,30 +12,30 @@ import (
 	"github.com/scache-io/scache/utils"
 )
 
-// NewEngine 创建新的存储引擎实例
+// NewEngine Create new storage engine instance
 func NewEngine(engineConfig *config.EngineConfig) interfaces.StorageEngine {
 	return storage.NewStorageEngine(engineConfig)
 }
 
-// LocalCache 局部缓存封装
+// LocalCache Local cache wrapper
 type LocalCache struct {
 	engine interfaces.StorageEngine
 }
 
-// NewLocalCache 创建局部缓存实例
+// NewLocalCache Create local cache instance
 func NewLocalCache(engineConfig *config.EngineConfig) *LocalCache {
 	return &LocalCache{
 		engine: NewEngine(engineConfig),
 	}
 }
 
-// SetString 设置字符串值
+// SetString Set string value
 func (c *LocalCache) SetString(key, value string, ttl ...time.Duration) error {
 	obj := types.NewStringObject(value, utils.ParseTTL(ttl))
 	return c.engine.Set(key, obj)
 }
 
-// GetString 获取字符串值
+// GetString Get string value
 func (c *LocalCache) GetString(key string) (string, bool) {
 	obj, exists := c.engine.Get(key)
 	if !exists {
@@ -45,13 +45,13 @@ func (c *LocalCache) GetString(key string) (string, bool) {
 	return utils.ExtractStringValue(obj)
 }
 
-// SetList 设置列表值
+// SetList Set list value
 func (c *LocalCache) SetList(key string, values []interface{}, ttl ...time.Duration) error {
 	obj := types.NewListObject(values, utils.ParseTTL(ttl))
 	return c.engine.Set(key, obj)
 }
 
-// GetList 获取列表值
+// GetList Get list value
 func (c *LocalCache) GetList(key string) ([]interface{}, bool) {
 	obj, exists := c.engine.Get(key)
 	if !exists {
@@ -61,13 +61,13 @@ func (c *LocalCache) GetList(key string) ([]interface{}, bool) {
 	return utils.ExtractListValue(obj)
 }
 
-// SetHash 设置哈希值
+// SetHash Set hash value
 func (c *LocalCache) SetHash(key string, fields map[string]interface{}, ttl ...time.Duration) error {
 	obj := types.NewHashObject(fields, utils.ParseTTL(ttl))
 	return c.engine.Set(key, obj)
 }
 
-// GetHash 获取哈希值
+// GetHash Get hash value
 func (c *LocalCache) GetHash(key string) (map[string]interface{}, bool) {
 	obj, exists := c.engine.Get(key)
 	if !exists {
@@ -77,7 +77,7 @@ func (c *LocalCache) GetHash(key string) (map[string]interface{}, bool) {
 	return utils.ExtractHashValue(obj)
 }
 
-// Store 存储结构体值（JSON序列化，支持指针和非指针类型）
+// Store Store struct值（JSON序列化，支持指针和非指针Type）
 func (c *LocalCache) Store(key string, obj interface{}, ttl ...time.Duration) error {
 	jsonBytes, err := json.Marshal(obj)
 	if err != nil {
@@ -88,9 +88,9 @@ func (c *LocalCache) Store(key string, obj interface{}, ttl ...time.Duration) er
 	return c.engine.Set(key, stringObj)
 }
 
-// Load 加载结构体值（JSON反序列化，要求指针参数）
+// Load Load struct值（JSON反序列化，要求指针Parameter）
 func (c *LocalCache) Load(key string, dest interface{}) error {
-	// 验证参数
+	// 验证Parameter
 	if err := utils.ValidatePointerArgument(dest); err != nil {
 		return err
 	}
@@ -108,17 +108,17 @@ func (c *LocalCache) Load(key string, dest interface{}) error {
 	return json.Unmarshal([]byte(jsonData), dest)
 }
 
-// Delete 删除键
+// Delete Delete key
 func (c *LocalCache) Delete(key string) bool {
 	return c.engine.Delete(key)
 }
 
-// Exists 检查键是否存在
+// Exists Check if key exists
 func (c *LocalCache) Exists(key string) bool {
 	return c.engine.Exists(key)
 }
 
-// Keys 获取所有键
+// Keys Get all keys
 func (c *LocalCache) Keys() []string {
 	return c.engine.Keys()
 }
@@ -128,12 +128,12 @@ func (c *LocalCache) Flush() error {
 	return c.engine.Flush()
 }
 
-// Size 获取缓存大小
+// Size Get cache size
 func (c *LocalCache) Size() int {
 	return c.engine.Size()
 }
 
-// Expire 设置过期时间
+// Expire Set expiration time
 func (c *LocalCache) Expire(key string, ttl time.Duration) bool {
 	return c.engine.Expire(key, ttl)
 }
@@ -143,7 +143,7 @@ func (c *LocalCache) TTL(key string) (time.Duration, bool) {
 	return c.engine.TTL(key)
 }
 
-// Stats 获取统计信息
+// Stats Get statistics
 func (c *LocalCache) Stats() interface{} {
 	return c.engine.Stats()
 }

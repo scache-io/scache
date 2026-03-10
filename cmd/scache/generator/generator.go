@@ -19,45 +19,45 @@ var cacheTemplateContent string
 //go:embed cache_generic.tpl
 var cacheGenericTemplateContent string
 
-// Config 生成器配置
+// Config Generator configuration
 type Config struct {
-	Dir            string   // 扫描目录
-	Package        string   // 包名
-	ExcludeDirs    []string // 排除的目录
-	TargetStructs  []string // 指定的结构体名称
-	SplitPackages  bool     // 是否按结构体分包
-	GeneratedCount int      // 生成的结构体数量
-	UseGeneric     bool     // 是否使用泛型版本
+	Dir            string   // Scan directory
+	Package        string   // Package name
+	ExcludeDirs    []string // Directories to exclude
+	TargetStructs  []string // Specific struct names
+	SplitPackages  bool     // Split by package
+	GeneratedCount int      // Number of generated structs
+	UseGeneric     bool     // Use generic version
 }
 
-// StructInfo 结构体信息
+// StructInfo Struct information
 type StructInfo struct {
-	Name   string      // 结构体名称
-	Fields []FieldInfo // 字段信息
-	Pkg    string      // 包名
-	Source string      // 源文件路径
+	Name   string      // Struct name
+	Fields []FieldInfo // Field information
+	Pkg    string      // Package name
+	Source string      // Source file path
 }
 
-// FieldInfo 字段信息
+// FieldInfo Field information
 type FieldInfo struct {
-	Name string // 字段名
-	Type string // 字段类型
-	Tag  string // 标签
+	Name string // Field name
+	Type string // Field type
+	Tag  string // Tag
 }
 
-// Generate 执行代码生成
+// Generate Execute code generation
 func Generate(config *Config) error {
-	// 扫描结构体
+	// Scan structs
 	structs, err := scanStructs(config)
 	if err != nil {
-		return fmt.Errorf("扫描结构体失败: %w", err)
+		return fmt.Errorf("failed to scan structs: %w", err)
 	}
 
 	if len(structs) == 0 {
-		return fmt.Errorf("未发现任何结构体")
+		return fmt.Errorf("No structs found")
 	}
 
-	// 过滤指定的结构体
+	// Filter specified structs
 	if len(config.TargetStructs) > 0 {
 		filtered := make([]StructInfo, 0)
 		structMap := make(map[string]StructInfo)
@@ -73,17 +73,17 @@ func Generate(config *Config) error {
 	}
 
 	if len(structs) == 0 {
-		return fmt.Errorf("未找到指定的结构体")
+		return fmt.Errorf("Specified structs not found")
 	}
 
-	// 记录生成的结构体数量
+	// Record number of generated structs
 	config.GeneratedCount = len(structs)
 
-	// 直接在同目录生成文件，不再分包
+	// Generate file in same directory, no package splitting
 	return generateInPlace(config, structs)
 }
 
-// scanStructs 扫描目录中的所有结构体
+// scanStructs Scan directoryall structs in
 func scanStructs(config *Config) ([]StructInfo, error) {
 	var structs []StructInfo
 	fset := token.NewFileSet()
@@ -93,9 +93,9 @@ func scanStructs(config *Config) ([]StructInfo, error) {
 			return err
 		}
 
-		// 跳过目录
+		// Skip directory
 		if info.IsDir() {
-			// 检查是否需要排除
+			// Check if should exclude
 			for _, exclude := range config.ExcludeDirs {
 				if strings.Contains(path, exclude) {
 					return filepath.SkipDir
@@ -104,23 +104,23 @@ func scanStructs(config *Config) ([]StructInfo, error) {
 			return nil
 		}
 
-		// 只处理.go文件
+		// Only process .go files
 		if !strings.HasSuffix(path, ".go") {
 			return nil
 		}
 
-		// 跳过测试文件
+		// Skip test files
 		if strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
 
-		// 解析Go文件
+		// Parse Go file
 		file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 		if err != nil {
-			return nil // 忽略解析错误的文件
+			return nil // Ignore files with parse errors
 		}
 
-		// 提取结构体
+		// Extract structs
 		fileStructs := extractStructs(file, path)
 		structs = append(structs, fileStructs...)
 
@@ -130,7 +130,7 @@ func scanStructs(config *Config) ([]StructInfo, error) {
 	return structs, err
 }
 
-// extractStructs 从AST中提取结构体
+// extractStructs Extract structs from AST
 func extractStructs(file *ast.File, sourcePath string) []StructInfo {
 	var structs []StructInfo
 
@@ -151,24 +151,24 @@ func extractStructs(file *ast.File, sourcePath string) []StructInfo {
 				continue
 			}
 
-			// 提取字段信息
+			// 提取Field information
 			var fields []FieldInfo
 			if structType.Fields != nil {
 				for _, field := range structType.Fields.List {
 					fieldInfo := FieldInfo{}
 
-					// 字段名
+					// Field name
 					if len(field.Names) > 0 {
 						fieldInfo.Name = field.Names[0].Name
 					} else {
-						// 匿名字段
+						// Anonymous field
 						fieldInfo.Name = ""
 					}
 
-					// 字段类型
+					// Field type
 					fieldInfo.Type = fieldTypeToString(field.Type)
 
-					// 标签
+					// Tag
 					if field.Tag != nil {
 						fieldInfo.Tag = strings.Trim(field.Tag.Value, "`")
 					}
@@ -189,7 +189,7 @@ func extractStructs(file *ast.File, sourcePath string) []StructInfo {
 	return structs
 }
 
-// fieldTypeToString 将字段类型转换为字符串
+// fieldTypeToString Convert field type to string
 func fieldTypeToString(expr ast.Expr) string {
 	switch t := expr.(type) {
 	case *ast.Ident:
@@ -211,15 +211,15 @@ func fieldTypeToString(expr ast.Expr) string {
 	}
 }
 
-// generateInPlace 在原文件同目录下生成_scache.go文件
+// generateInPlace Generate _scache.go file in same directory
 func generateInPlace(config *Config, structs []StructInfo) error {
-	// 按包分组结构体
+	// Group structs by package
 	packageGroups := make(map[string][]StructInfo)
 	for _, structInfo := range structs {
 		packageGroups[structInfo.Pkg] = append(packageGroups[structInfo.Pkg], structInfo)
 	}
 
-	// 为每个包生成_scache.go文件
+	// Generate _scache.go file for each package
 	for pkgName, pkgStructs := range packageGroups {
 		if err := generatePackageScache(config, pkgName, pkgStructs); err != nil {
 			return err
@@ -229,28 +229,28 @@ func generateInPlace(config *Config, structs []StructInfo) error {
 	return nil
 }
 
-// generatePackageScache 为指定包生成_scache.go文件
+// generatePackageScache Generate _scache.go file for specified package
 func generatePackageScache(config *Config, pkgName string, structs []StructInfo) error {
-	// 找到该包的第一个结构体所在目录
+	// Find directory of first struct in package
 	targetDir := findPackageDirectory(pkgName, structs)
 	if targetDir == "" {
-		return fmt.Errorf("找不到包 %s 的目录", pkgName)
+		return fmt.Errorf("package directory not found: %s", pkgName)
 	}
 
-	// 生成文件名
+	// Generate filename
 	filename := filepath.Join(targetDir, pkgName+"_scache.go")
 
-	// 生成包代码
+	// Generate package code
 	content, err := generatePackageCode(pkgName, structs, config.UseGeneric)
 	if err != nil {
-		return fmt.Errorf("生成代码失败: %w", err)
+		return fmt.Errorf("Failed to generate code: %w", err)
 	}
 
-	// 写入文件
+	// Write file
 	return generatePackageFile(filename, content)
 }
 
-// findPackageDirectory 找到包的目录
+// findPackageDirectory Find package directory
 func findPackageDirectory(pkgName string, structs []StructInfo) string {
 	for _, structInfo := range structs {
 		if structInfo.Pkg == pkgName {
@@ -260,13 +260,13 @@ func findPackageDirectory(pkgName string, structs []StructInfo) string {
 	return ""
 }
 
-// TemplateData 模板数据结构
+// TemplateData Template data structure
 type TemplateData struct {
 	Package string
 	Structs []StructInfo
 }
 
-// loadTemplate 加载模板文件
+// loadTemplate Load template file
 func loadTemplate(useGeneric bool) (*template.Template, error) {
 	templateName := "cache"
 	templateContent := cacheTemplateContent
@@ -279,12 +279,12 @@ func loadTemplate(useGeneric bool) (*template.Template, error) {
 	return template.New(templateName).Parse(templateContent)
 }
 
-// generatePackageCode 为指定包生成缓存代码
+// generatePackageCode Generate cache code for specified package
 func generatePackageCode(pkgName string, structs []StructInfo, useGeneric bool) (string, error) {
-	// 加载嵌入的模板
+	// Load embedded template
 	tmpl, err := loadTemplate(useGeneric)
 	if err != nil {
-		return "", fmt.Errorf("加载模板失败: %w", err)
+		return "", fmt.Errorf("Failed to load template: %w", err)
 	}
 
 	data := TemplateData{
@@ -294,46 +294,46 @@ func generatePackageCode(pkgName string, structs []StructInfo, useGeneric bool) 
 
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", fmt.Errorf("执行模板失败: %w", err)
+		return "", fmt.Errorf("Failed to execute template: %w", err)
 	}
 
 	return buf.String(), nil
 }
 
-// generatePackageFile 生成包文件
+// generatePackageFile Generate package file
 func generatePackageFile(filePath, content string) error {
-	// 确保目录存在
+	// Ensure directory exists
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("创建目录失败: %w", err)
+		return fmt.Errorf("Failed to create directory: %w", err)
 	}
 
-	// 检查文件是否已存在，如果存在则先删除
+	// Check if file exists, delete if it does
 	if _, err := os.Stat(filePath); err == nil {
 		if removeErr := os.Remove(filePath); removeErr != nil {
 			return fmt.Errorf("failed to remove existing file: %w", removeErr)
 		}
 	}
 
-	// 写入文件
+	// Write file
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
-	// 格式化生成的文件
+	// Format generated file
 	_ = formatGoFile(filePath) // Ignore format errors
 
 	return nil
 }
 
-// formatGoFile 格式化Go文件
+// formatGoFile Format Go file
 func formatGoFile(filePath string) error {
-	// 执行go fmt命令
+	// Execute go fmt command
 	cmd := exec.Command("go", "fmt", filePath)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return fmt.Errorf("go fmt执行失败: %v, 输出: %s", err, string(output))
+		return fmt.Errorf("go fmt failed: %v, output: %s", err, string(output))
 	}
 
 	return nil

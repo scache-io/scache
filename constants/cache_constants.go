@@ -2,7 +2,7 @@ package constants
 
 import "time"
 
-// 默认配置常量
+// 默认配置Constant
 const (
 	DefaultMaxSize         = 0    // 默认最大缓存大小，0表示无限制
 	DefaultExpiration      = 0    // 默认过期时间，0表示永不过期
@@ -16,7 +16,7 @@ const (
 	DefaultLRUCapacity = 100 // LRU策略的默认容量
 )
 
-// 时间常量，方便用户使用
+// 时间Constant，方便用户使用
 const (
 	Second = time.Second    // 秒
 	Minute = time.Minute    // 分钟
@@ -25,22 +25,22 @@ const (
 	Week   = 7 * Day        // 周
 )
 
-// 缓存条目状态常量
+// 缓存条目状态Constant
 const (
 	StatusActive  = "active"  // 活跃状态
 	StatusExpired = "expired" // 已过期
 	StatusEvicted = "evicted" // 已被淘汰
 )
 
-// 容量常量
+// 容量Constant
 const (
-	SmallCapacity  = 1000   // 小型缓存容量
-	MediumCapacity = 10000  // 中型缓存容量
-	LargeCapacity  = 100000 // 大型缓存容量
+	SmallCapacity  = 1000   // 小型Cache capacity
+	MediumCapacity = 10000  // 中型Cache capacity
+	LargeCapacity  = 100000 // 大型Cache capacity
 	TestCapacity   = 10     // 测试用容量
 )
 
-// 内存阈值常量
+// 内存阈值Constant
 const (
 	SmallMemoryThreshold   = 0.7    // 小型配置内存阈值 70%
 	MediumMemoryThreshold  = 0.8    // 中型配置内存阈值 80%
@@ -51,7 +51,7 @@ const (
 	TestMemoryThreshold    = 0.0001 // 测试用极低内存阈值
 )
 
-// 常用时间间隔常量
+// 常用时间间隔Constant
 const (
 	TwoMinutes    = 2 * Minute  // 2分钟
 	TenMinutes    = 10 * Minute // 10分钟

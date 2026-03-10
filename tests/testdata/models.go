@@ -1,6 +1,6 @@
 package models
 
-// User 用户结构体 - 用于测试
+// User User struct - for testing
 type User struct {
 	ID       int    `json:"id"`
 	Name     string `json:"name"`
@@ -9,7 +9,7 @@ type User struct {
 	IsActive bool   `json:"is_active"`
 }
 
-// Product 产品结构体 - 用于测试
+// Product Product struct - for testing
 type Product struct {
 	ID          int     `json:"id"`
 	Name        string  `json:"name"`
@@ -18,7 +18,7 @@ type Product struct {
 	Stock       int     `json:"stock"`
 }
 
-// Order 订单结构体 - 用于测试复杂类型
+// Order Order struct - for testing complex types
 type Order struct {
 	ID         string  `json:"id"`
 	UserID     int     `json:"user_id"`

@@ -22,28 +22,28 @@ import (
 
 // Public types
 type (
-	// LocalCache 局部缓存实例
+	// LocalCache Local cache instance
 	LocalCache = api.LocalCache
 
-	// EngineConfig 缓存引擎配置
+	// EngineConfig Cache engine configuration
 	EngineConfig = config.EngineConfig
 
-	// DataObject 通用数据对象接口
+	// DataObject Generic data object interface
 	DataObject = interfaces.DataObject
 
-	// StringObject 字符串对象接口
+	// StringObject String object interface
 	StringObject = interfaces.StringObject
 
-	// ListObject 列表对象接口
+	// ListObject List object interface
 	ListObject = interfaces.ListObject
 
-	// HashObject 哈希对象接口
+	// HashObject Hash object interface
 	HashObject = interfaces.HashObject
 
-	// StructObject 结构体对象接口
+	// StructObject Struct object interface
 	StructObject = interfaces.StructObject
 
-	// DataType 数据类型
+	// DataType Data type
 	DataType = interfaces.DataType
 )
 

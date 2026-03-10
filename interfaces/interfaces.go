@@ -2,7 +2,7 @@ package interfaces
 
 import "time"
 
-// DataType 数据类型枚举
+// DataType Data type枚举
 type DataType string
 
 const (
@@ -12,7 +12,7 @@ const (
 	DataTypeStruct DataType = "struct"
 )
 
-// DataObject 通用数据对象接口
+// DataObject Generic data object interface
 type DataObject interface {
 	Type() DataType
 	ExpiresAt() time.Time
@@ -20,14 +20,14 @@ type DataObject interface {
 	Size() int
 }
 
-// StringObject 字符串对象接口
+// StringObject String object interface
 type StringObject interface {
 	DataObject
 	Value() string
 	Set(value string)
 }
 
-// ListObject 列表对象接口
+// ListObject List object interface
 type ListObject interface {
 	DataObject
 	Values() []interface{}
@@ -38,7 +38,7 @@ type ListObject interface {
 	Len() int
 }
 
-// HashObject 哈希对象接口
+// HashObject Hash object interface
 type HashObject interface {
 	DataObject
 	Fields() map[string]interface{}
@@ -48,14 +48,14 @@ type HashObject interface {
 	Len() int
 }
 
-// StructObject 结构体对象接口
+// StructObject Struct object interface
 type StructObject interface {
 	DataObject
 	Data() string
 	Set(data string)
 }
 
-// StorageEngine 存储引擎接口
+// StorageEngine Storage engineInterface
 type StorageEngine interface {
 	Set(key string, obj DataObject) error
 	Get(key string) (DataObject, bool)
@@ -65,7 +65,7 @@ type StorageEngine interface {
 	Flush() error
 	Size() int
 
-	// Type 类型检查
+	// Type Type检查
 	Type(key string) (DataType, bool)
 
 	// Expire 过期管理
@@ -76,7 +76,7 @@ type StorageEngine interface {
 	Stats() interface{}
 }
 
-// EvictionPolicy 淘汰策略接口
+// EvictionPolicy Eviction policyInterface
 type EvictionPolicy interface {
 	// Access 当访问 key 时调用
 	Access(key string)

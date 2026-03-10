@@ -6,7 +6,7 @@ import (
 	"github.com/scache-io/scache/constants"
 )
 
-// EngineConfig 存储引擎配置
+// EngineConfig Storage engine配置
 type EngineConfig struct {
 	MaxSize                   int           // 最大缓存数量
 	MemoryThreshold           float64       // 内存阈值

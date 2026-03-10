@@ -13,7 +13,7 @@ import (
 	"github.com/scache-io/scache/utils"
 )
 
-// StorageEngine 存储引擎实现
+// StorageEngine Storage engine实现
 type StorageEngine struct {
 	mu        sync.RWMutex
 	data      map[string]interfaces.DataObject
@@ -36,7 +36,7 @@ type EngineStats struct {
 	memoryUsage int64 // 字节
 }
 
-// NewStorageEngine 创建新的存储引擎
+// NewStorageEngine 创建新的Storage engine
 func NewStorageEngine(engineConfig *config.EngineConfig) interfaces.StorageEngine {
 	if engineConfig == nil {
 		engineConfig = config.DefaultEngineConfig()
@@ -61,7 +61,7 @@ func NewStorageEngine(engineConfig *config.EngineConfig) interfaces.StorageEngin
 
 // Set 存储对象
 func (e *StorageEngine) Set(key string, obj interfaces.DataObject) error {
-	// 验证参数
+	// 验证Parameter
 	if err := utils.ValidateCacheKey(key); err != nil {
 		return err
 	}
@@ -106,9 +106,9 @@ func (e *StorageEngine) Set(key string, obj interfaces.DataObject) error {
 	return nil
 }
 
-// Get 获取对象
+// Get Get object
 func (e *StorageEngine) Get(key string) (interfaces.DataObject, bool) {
-	// 验证参数
+	// 验证Parameter
 	if key == "" {
 		return nil, false
 	}
@@ -122,7 +122,7 @@ func (e *StorageEngine) Get(key string) (interfaces.DataObject, bool) {
 		return nil, false
 	}
 
-	// 检查过期
+	// Check expiration
 	if obj.IsExpired() {
 		e.deleteExpired(key)
 		e.stats.recordMiss()
@@ -135,7 +135,7 @@ func (e *StorageEngine) Get(key string) (interfaces.DataObject, bool) {
 	return obj, true
 }
 
-// deleteExpired 同步删除过期键（避免竞态条件）
+// deleteExpired Synchronously delete expired key（避免竞态条件）
 func (e *StorageEngine) deleteExpired(key string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -146,9 +146,9 @@ func (e *StorageEngine) deleteExpired(key string) {
 	}
 }
 
-// Delete 删除对象
+// Delete Delete object
 func (e *StorageEngine) Delete(key string) bool {
-	// 验证参数
+	// 验证Parameter
 	if key == "" {
 		return false
 	}
@@ -171,9 +171,9 @@ func (e *StorageEngine) Delete(key string) bool {
 	return false
 }
 
-// Exists 检查键是否存在
+// Exists Check if key exists
 func (e *StorageEngine) Exists(key string) bool {
-	// 验证参数
+	// 验证Parameter
 	if key == "" {
 		return false
 	}
@@ -194,7 +194,7 @@ func (e *StorageEngine) Exists(key string) bool {
 	return true
 }
 
-// Keys 获取所有键
+// Keys Get all keys
 func (e *StorageEngine) Keys() []string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
@@ -224,7 +224,7 @@ func (e *StorageEngine) Size() int {
 	return len(e.data)
 }
 
-// Type 获取键的类型
+// Type Get key type
 func (e *StorageEngine) Type(key string) (interfaces.DataType, bool) {
 	e.mu.RLock()
 	obj, exists := e.data[key]
@@ -242,7 +242,7 @@ func (e *StorageEngine) Type(key string) (interfaces.DataType, bool) {
 	return obj.Type(), true
 }
 
-// Expire 设置过期时间
+// Expire Set expiration time
 func (e *StorageEngine) Expire(key string, ttl time.Duration) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -273,7 +273,7 @@ func (e *StorageEngine) Expire(key string, ttl time.Duration) bool {
 
 // TTL 获取剩余生存时间
 func (e *StorageEngine) TTL(key string) (time.Duration, bool) {
-	// 验证参数
+	// 验证Parameter
 	if key == "" {
 		return -1, false
 	}
@@ -289,7 +289,7 @@ func (e *StorageEngine) TTL(key string) (time.Duration, bool) {
 	return utils.CalculateRemainingTTL(obj.ExpiresAt())
 }
 
-// Stats 获取统计信息
+// Stats Get statistics
 func (e *StorageEngine) Stats() interface{} {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
@@ -358,7 +358,7 @@ func (e *StorageEngine) Close() {
 	close(e.stopChan)
 }
 
-// EngineStats 方法实现
+// EngineStats Method实现
 
 func (s *EngineStats) recordHit() {
 	s.mu.Lock()

@@ -9,7 +9,7 @@ import (
 	"github.com/scache-io/scache/config"
 )
 
-// ==================== 基础操作测试 ====================
+// ==================== Basic operation tests ====================
 
 func TestStringOperations(t *testing.T) {
 	cache := scache.New(config.DefaultEngineConfig())
