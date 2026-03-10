@@ -12,106 +12,28 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	appName = "scache"
-)
-
 //go:embed version.info
 var versionInfo string
 
-// getVersion 从嵌入的 version.info 文件获取版本号
+//go:embed help/root.txt
+var rootHelp string
+
+//go:embed help/gen.txt
+var genHelp string
+
+//go:embed help/version.txt
+var versionHelp string
+
 func getVersion() string {
 	return strings.TrimSpace(versionInfo)
 }
 
 func main() {
-	var rootCmd = &cobra.Command{
-		Use:   appName,
-		Short: "Go 结构体缓存代码生成工具",
-		Long: `SCache 是一个智能的 Go 结构体缓存代码生成工具，自动扫描项目中的结构体并生成对应的缓存操作方法。
+	rootCmd := newRootCmd()
+	rootCmd.AddCommand(newGenCmd())
+	rootCmd.AddCommand(newVersionCmd())
 
-支持的命令:
-  gen     生成结构体缓存代码（默认命令）
-  version 显示版本信息
-  help    显示帮助信息
-
-快速开始:
-  scache gen -g                     # 生成泛型版本缓存代码（推荐，快捷方式）
-  scache gen --generic              # 生成泛型版本缓存代码（完整方式）
-  scache gen -dir ./models          # 指定目录生成
-  scache gen -structs User,Product  # 只生成指定结构体
-
-更多帮助:
-  scache gen --help                 # 查看gen命令的详细选项
-  scache [command] --help           # 查看特定命令的帮助`,
-		Version: getVersion(),
-	}
-
-	// 添加 gen 子命令
-	var genCmd = &cobra.Command{
-		Use:   "gen",
-		Short: "生成结构体缓存代码",
-		Long: `自动扫描项目中的Go结构体，生成对应的缓存操作方法。
-
-支持两种版本：
-  泛型版本 (推荐): 代码更简洁，类型更安全，需要Go 1.18+
-  传统版本: 兼容旧版Go，功能完整
-
-生成的代码包含：
-  懒汉式单例缓存实例
-  Store/Load/Delete等核心方法
-  TTL过期时间管理
-  缓存统计和清理功能
-
-使用示例:
-  scache gen -g                            # 生成泛型版本（推荐，快捷方式）
-  scache gen --generic                     # 生成泛型版本（完整方式）
-  scache gen -dir ./models                 # 指定目录生成
-  scache gen -structs User,Product         # 只生成指定结构体
-  scache gen -g -exclude "test"            # 排除测试目录`,
-		RunE: runGen,
-	}
-
-	// gen 命令参数
-	var (
-		dir        string
-		pkgName    string
-		excludes   string
-		structs    string
-		useGeneric bool
-	)
-
-	genCmd.Flags().StringVarP(&dir, "dir", "d", ".", "项目目录路径")
-	genCmd.Flags().StringVarP(&pkgName, "package", "p", "", "包名（默认为目录名）")
-	genCmd.Flags().StringVarP(&excludes, "exclude", "e", "vendor,node_modules,.git", "排除的目录，用逗号分隔")
-	genCmd.Flags().StringVarP(&structs, "structs", "s", "", "指定结构体名称，用逗号分隔（默认生成所有）")
-	genCmd.Flags().BoolVarP(&useGeneric, "generic", "g", false, "使用泛型版本（推荐，Go 1.18+）")
-
-	// 添加 version 子命令
-	var versionCmd = &cobra.Command{
-		Use:   "version",
-		Short: "显示版本信息",
-		Long: `显示SCache工具的版本信息，包括版本号、构建信息和支持的Go版本要求。
-
-版本信息说明:
-  版本号格式: v[主版本].[次版本].[修订版本]
-  支持Go版本: 1.10+ (传统版本), 1.18+ (泛型版本)
-
-使用示例:
-  scache version                    # 显示版本信息
-  scache version --short           # 显示简短版本号`,
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("SCache version %s\n", getVersion())
-			fmt.Println("GitHub: https://github.com/scache-io/scache")
-			fmt.Println("Documentation: https://github.com/scache-io/scache/blob/main/README.md")
-		},
-	}
-
-	// 设置 gen 命令为默认命令
-	rootCmd.AddCommand(genCmd)
-	rootCmd.AddCommand(versionCmd)
-
-	// 如果没有参数，默认执行 gen
+	// 默认执行 gen
 	if len(os.Args) == 1 {
 		os.Args = append(os.Args, "gen")
 	}
@@ -122,7 +44,45 @@ func main() {
 	}
 }
 
-// runGen 执行生成命令
+func newRootCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "scache",
+		Short:   "Go 结构体缓存代码生成工具",
+		Long:    rootHelp,
+		Version: getVersion(),
+	}
+}
+
+func newGenCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "gen",
+		Short: "生成结构体缓存代码",
+		Long:  genHelp,
+		RunE:  runGen,
+	}
+
+	cmd.Flags().StringP("dir", "d", ".", "项目目录路径")
+	cmd.Flags().StringP("package", "p", "", "包名（默认为目录名）")
+	cmd.Flags().StringP("exclude", "e", "vendor,node_modules,.git", "排除的目录")
+	cmd.Flags().StringP("structs", "s", "", "指定结构体名称，用逗号分隔")
+	cmd.Flags().BoolP("generic", "g", false, "使用泛型版本（Go 1.18+）")
+
+	return cmd
+}
+
+func newVersionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "显示版本信息",
+		Long:  versionHelp,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("SCache version %s\n", getVersion())
+			fmt.Println("GitHub: https://github.com/scache-io/scache")
+			fmt.Println("Docs: https://github.com/scache-io/scache/blob/main/README.md")
+		},
+	}
+}
+
 func runGen(cmd *cobra.Command, args []string) error {
 	dir, _ := cmd.Flags().GetString("dir")
 	pkgName, _ := cmd.Flags().GetString("package")
@@ -130,39 +90,32 @@ func runGen(cmd *cobra.Command, args []string) error {
 	structs, _ := cmd.Flags().GetString("structs")
 	useGeneric, _ := cmd.Flags().GetBool("generic")
 
-	// 检查目录是否存在
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return fmt.Errorf("目录不存在: %s", dir)
 	}
 
-	// 确定包名
 	packageName := pkgName
 	if packageName == "" {
 		packageName = filepath.Base(dir)
-		// 如果目录名包含go mod路径，提取最后部分
 		if strings.Contains(packageName, "-") {
 			parts := strings.Split(packageName, "/")
 			packageName = parts[len(parts)-1]
 		}
 	}
 
-	// 解析排除目录
 	excludeDirs := strings.Split(excludes, ",")
-	for i, dir := range excludeDirs {
-		excludeDirs[i] = strings.TrimSpace(dir)
+	for i, d := range excludeDirs {
+		excludeDirs[i] = strings.TrimSpace(d)
 	}
 
-	// 解析指定的结构体
 	var targetStructs []string
 	if structs != "" {
 		targetStructs = strings.Split(structs, ",")
-		// 去除空白字符
 		for i, s := range targetStructs {
 			targetStructs[i] = strings.TrimSpace(s)
 		}
 	}
 
-	// 创建生成器配置
 	config := &generator.Config{
 		Dir:           dir,
 		Package:       packageName,
@@ -172,12 +125,10 @@ func runGen(cmd *cobra.Command, args []string) error {
 		UseGeneric:    useGeneric,
 	}
 
-	// 检测并自动安装 scache 包
 	if err := ensureScachePackage(dir); err != nil {
-		return fmt.Errorf("安装scache包失败: %w", err)
+		return fmt.Errorf("安装 scache 包失败: %w", err)
 	}
 
-	// 执行代码生成
 	if err := generator.Generate(config); err != nil {
 		return fmt.Errorf("生成失败: %w", err)
 	}
@@ -186,7 +137,6 @@ func runGen(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// printSuccess 打印成功信息
 func printSuccess(config *generator.Config, packageName, dir string, targetStructs []string) {
 	fmt.Printf("缓存代码已生成到: %s\n", dir)
 	fmt.Printf("包名: %s\n", packageName)
@@ -202,7 +152,7 @@ func printSuccess(config *generator.Config, packageName, dir string, targetStruc
 	fmt.Printf("\n使用示例:\n")
 	fmt.Printf("  import \"yourproject/%s\"\n", packageName)
 	fmt.Printf("  \n")
-	fmt.Printf("  // 使用默认缓存实例\n")
+	fmt.Printf("  // 使用缓存实例\n")
 	if len(targetStructs) > 0 {
 		fmt.Printf("  cache := %s.Get%sScache()\n", packageName, targetStructs[0])
 		fmt.Printf("  cache.Store(\"key\", %s{}, time.Hour)\n", targetStructs[0])
@@ -212,12 +162,9 @@ func printSuccess(config *generator.Config, packageName, dir string, targetStruc
 	}
 }
 
-// ensureScachePackage 检测并自动安装 scache 包
 func ensureScachePackage(dir string) error {
-	// 查找项目根目录的 go.mod 文件
 	projectRoot, err := findProjectRoot(dir)
 	if err != nil {
-		// 如果找不到 go.mod，在当前目录初始化一个
 		fmt.Println("未找到 go.mod 文件，正在初始化...")
 		if err := initGoMod(dir); err != nil {
 			return fmt.Errorf("初始化 go.mod 失败: %w", err)
@@ -225,7 +172,6 @@ func ensureScachePackage(dir string) error {
 		projectRoot = dir
 	}
 
-	// 检测 scache 包是否已安装
 	if !isScachePackageInstalled(projectRoot) {
 		fmt.Println("正在安装 scache 包...")
 		if err := installScachePackage(projectRoot); err != nil {
@@ -239,16 +185,13 @@ func ensureScachePackage(dir string) error {
 	return nil
 }
 
-// initGoMod go.mod 文件初始化
 func initGoMod(dir string) error {
-	// 获取最后一个目录名作为模块名
 	dirName := filepath.Base(dir)
 	if dirName == "." || dirName == "/" {
 		dirName = "project"
 	}
 	moduleName := "example.com/" + dirName
 
-	// 在传入的目录下执行 go mod init
 	cmd := exec.Command("go", "mod", "init", moduleName)
 	cmd.Dir = dir
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -257,7 +200,6 @@ func initGoMod(dir string) error {
 	return nil
 }
 
-// findProjectRoot 查找项目的根目录（包含go.mod文件的目录）
 func findProjectRoot(dir string) (string, error) {
 	currentDir, err := filepath.Abs(dir)
 	if err != nil {
@@ -270,17 +212,14 @@ func findProjectRoot(dir string) (string, error) {
 			return currentDir, nil
 		}
 
-		// 移动到父目录
 		parent := filepath.Dir(currentDir)
 		if parent == currentDir {
-			// 已经到达根目录
-			return "", fmt.Errorf("未找到 go.mod 文件，请先在项目根目录初始化 go.mod")
+			return "", fmt.Errorf("未找到 go.mod 文件")
 		}
 		currentDir = parent
 	}
 }
 
-// isScachePackageInstalled 检测 scache 包是否已安装
 func isScachePackageInstalled(dir string) bool {
 	cmd := exec.Command("go", "list", "-m", "all")
 	cmd.Dir = dir
@@ -288,13 +227,10 @@ func isScachePackageInstalled(dir string) bool {
 	if err != nil {
 		return false
 	}
-	// 检查输出中是否包含 scache 包
 	return strings.Contains(string(output), "github.com/scache-io/scache")
 }
 
-// installScachePackage 安装 scache 包
 func installScachePackage(dir string) error {
-	// 运行 go get 安装包
 	cmd := exec.Command("go", "get", "github.com/scache-io/scache@latest")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -302,7 +238,6 @@ func installScachePackage(dir string) error {
 	}
 	fmt.Printf("go get 输出: %s\n", string(output))
 
-	// 运行 go mod tidy 确保依赖完整
 	tidyCmd := exec.Command("go", "mod", "tidy")
 	if output, err := tidyCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("执行 go mod tidy 失败: %v, output: %s", err, string(output))
