@@ -133,6 +133,19 @@ func runGen(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("生成失败: %w", err)
 	}
 
+	// 生成代码后执行 go mod tidy，确保依赖完整
+	fmt.Println("正在整理依赖...")
+	projectRoot, err := findProjectRoot(dir)
+	if err == nil {
+		tidyCmd := exec.Command("go", "mod", "tidy")
+		tidyCmd.Dir = projectRoot
+		if output, err := tidyCmd.CombinedOutput(); err != nil {
+			fmt.Printf("警告: go mod tidy 失败: %v\n", err)
+		} else if len(output) > 0 {
+			fmt.Printf("依赖已更新\n")
+		}
+	}
+
 	printSuccess(config, packageName, dir, targetStructs)
 	return nil
 }
@@ -231,18 +244,28 @@ func isScachePackageInstalled(dir string) bool {
 }
 
 func installScachePackage(dir string) error {
-	cmd := exec.Command("go", "get", "github.com/scache-io/scache@latest")
+	// 使用当前版本而不是 @latest，确保版本一致
+	version := getVersion()
+	pkgPath := fmt.Sprintf("github.com/scache-io/scache@v%s", version)
+
+	cmd := exec.Command("go", "get", pkgPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("执行 go get 失败: %v, output: %s", err, string(output))
+		// 如果指定版本失败，尝试使用 @latest
+		fmt.Printf("警告: 安装 v%s 失败，尝试使用最新版本\n", version)
+		cmd = exec.Command("go", "get", "github.com/scache-io/scache@latest")
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("执行 go get 失败: %v, output: %s", err, string(output))
+		}
 	}
-	fmt.Printf("go get 输出: %s\n", string(output))
+	fmt.Printf("scache 包安装成功\n")
 
 	tidyCmd := exec.Command("go", "mod", "tidy")
+	tidyCmd.Dir = dir
 	if output, err := tidyCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("执行 go mod tidy 失败: %v, output: %s", err, string(output))
 	}
-	fmt.Printf("go mod tidy 输出: %s\n", string(output))
 
 	return nil
 }
