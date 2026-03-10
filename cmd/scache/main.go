@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,8 +14,15 @@ import (
 
 const (
 	appName = "scache"
-	version = "0.0.3"
 )
+
+//go:embed version.info
+var versionInfo string
+
+// getVersion 从嵌入的 version.info 文件获取版本号
+func getVersion() string {
+	return strings.TrimSpace(versionInfo)
+}
 
 func main() {
 	var rootCmd = &cobra.Command{
@@ -36,7 +44,7 @@ func main() {
 更多帮助:
   scache gen --help                 # 查看gen命令的详细选项
   scache [command] --help           # 查看特定命令的帮助`,
-		Version: version,
+		Version: getVersion(),
 	}
 
 	// 添加 gen 子命令
@@ -93,7 +101,7 @@ func main() {
   scache version                    # 显示版本信息
   scache version --short           # 显示简短版本号`,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("SCache version %s\n", version)
+			fmt.Printf("SCache version %s\n", getVersion())
 			fmt.Println("GitHub: https://github.com/scache-io/scache")
 			fmt.Println("Documentation: https://github.com/scache-io/scache/blob/main/README.md")
 		},
