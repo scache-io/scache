@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/scache-io/scache/config"
-	"github.com/scache-io/scache/internal"
 	"github.com/scache-io/scache/interfaces"
+	"github.com/scache-io/scache/internal"
 	"github.com/scache-io/scache/policies/lru"
 	"github.com/scache-io/scache/types"
 	"github.com/scache-io/scache/utils"

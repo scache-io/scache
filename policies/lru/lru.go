@@ -12,14 +12,14 @@ import (
 // noopPolicy 无操作策略（当容量 <= 0 时使用，禁用淘汰）
 type noopPolicy struct{}
 
-func (n *noopPolicy) Access(key string)          {}
-func (n *noopPolicy) Set(key string)             {}
-func (n *noopPolicy) Delete(key string)          {}
-func (n *noopPolicy) Evict() string              { return "" }
-func (n *noopPolicy) Size() int                  { return 0 }
-func (n *noopPolicy) Clear()                     {}
-func (n *noopPolicy) Contains(key string) bool   { return false }
-func (n *noopPolicy) Keys() []string             { return nil }
+func (n *noopPolicy) Access(key string)           {}
+func (n *noopPolicy) Set(key string)              {}
+func (n *noopPolicy) Delete(key string)           {}
+func (n *noopPolicy) Evict() string               { return "" }
+func (n *noopPolicy) Size() int                   { return 0 }
+func (n *noopPolicy) Clear()                      {}
+func (n *noopPolicy) Contains(key string) bool    { return false }
+func (n *noopPolicy) Keys() []string              { return nil }
 func (n *noopPolicy) UpdateCapacity(capacity int) {}
 
 // lruPolicy LRU淘汰策略的实现结构体

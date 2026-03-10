@@ -13,10 +13,10 @@
 package scache
 
 import (
-	"github.com/scache-io/scache/pkg/api"
 	"github.com/scache-io/scache/config"
 	"github.com/scache-io/scache/errors"
 	"github.com/scache-io/scache/interfaces"
+	"github.com/scache-io/scache/pkg/api"
 	"github.com/scache-io/scache/types"
 )
 
@@ -68,25 +68,25 @@ const (
 
 // Local cache API
 var (
-	New               = api.New
-	GetGlobalCache    = api.GetGlobalCache
-	InitGlobalCache   = api.InitGlobalCache
-	SetString         = api.SetString
-	GetString         = api.GetString
-	SetList           = api.SetList
-	GetList           = api.GetList
-	SetHash           = api.SetHash
-	GetHash           = api.GetHash
-	Store             = api.Store
-	Load              = api.Load
-	Delete            = api.Delete
-	Exists            = api.Exists
-	Keys              = api.Keys
-	Flush             = api.Flush
-	Size              = api.Size
-	Expire            = api.Expire
-	TTL               = api.TTL
-	Stats             = api.Stats
+	New             = api.New
+	GetGlobalCache  = api.GetGlobalCache
+	InitGlobalCache = api.InitGlobalCache
+	SetString       = api.SetString
+	GetString       = api.GetString
+	SetList         = api.SetList
+	GetList         = api.GetList
+	SetHash         = api.SetHash
+	GetHash         = api.GetHash
+	Store           = api.Store
+	Load            = api.Load
+	Delete          = api.Delete
+	Exists          = api.Exists
+	Keys            = api.Keys
+	Flush           = api.Flush
+	Size            = api.Size
+	Expire          = api.Expire
+	TTL             = api.TTL
+	Stats           = api.Stats
 )
 
 // Config helpers
