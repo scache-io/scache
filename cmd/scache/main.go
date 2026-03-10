@@ -160,21 +160,7 @@ func runGen(cmd *cobra.Command, args []string) error {
 }
 
 func printSuccess(config *generator.Config, packageName, dir string, targetStructs []string) {
-	fmt.Printf("%s✓%s Generated %d struct(s) in %s\n", colorGreen, colorReset, config.GeneratedCount, dir)
-
-	if len(targetStructs) > 0 {
-		fmt.Printf("  %sStructs:%s %v\n", colorCyan, colorReset, targetStructs)
-	}
-
-	fmt.Printf("\n%sUsage:%s\n", colorYellow, colorReset)
-	fmt.Printf("  import \"yourproject/%s\"\n", packageName)
-	if len(targetStructs) > 0 {
-		fmt.Printf("  cache := %s.Get%sScache()\n", packageName, targetStructs[0])
-		fmt.Printf("  cache.Store(\"key\", %s{}, time.Hour)\n", targetStructs[0])
-	} else {
-		fmt.Printf("  cache := %s.GetExampleScache()\n", packageName)
-		fmt.Printf("  cache.Store(\"key\", Example{}, time.Hour)\n")
-	}
+	fmt.Printf("%s✓%s Generated %d struct(s): %s\n", colorGreen, colorReset, config.GeneratedCount, dir)
 }
 
 func ensureScachePackage(dir string) error {
