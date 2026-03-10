@@ -1,5 +1,5 @@
 module testproject
 
-go 1.22
+go 1.24.6
 
-require github.com/scache-io/scache v0.0.4
+toolchain go1.24.9
