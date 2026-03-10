@@ -128,10 +128,10 @@ func TestCMDNoStructs(t *testing.T) {
 	cmd := exec.Command(binary, "gen", "--generic", "--dir", tempDir)
 	output, err := cmd.CombinedOutput()
 
-	// 可能因为网络问题failed，但至少应该尝试执行
+	// May fail due to network issues, but should at least try to execute
 	if err != nil {
 		outputStr := string(output)
-		validErrors := []string{"No structs found", "未找到", "安装", "go get"}
+		validErrors := []string{"no structs found", "not found", "install", "go get"}
 		hasValidError := false
 		for _, e := range validErrors {
 			if strings.Contains(outputStr, e) {

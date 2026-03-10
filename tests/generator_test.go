@@ -397,8 +397,8 @@ func TestGeneratorEmptyStructs(t *testing.T) {
 		t.Error("Should return error when no structs")
 	}
 
-	if !strings.Contains(err.Error(), "No structs found") {
-		t.Errorf("error message should contain'No structs found': %v", err)
+	if !strings.Contains(err.Error(), "no structs found") {
+		t.Errorf("error message should contain 'no structs found': %v", err)
 	}
 }
 
@@ -417,8 +417,8 @@ func TestGeneratorNonexistentStruct(t *testing.T) {
 		t.Error("Should return error when struct not found")
 	}
 
-	if !strings.Contains(err.Error(), "Specified structs not found") {
-		t.Errorf("error message should contain'Specified structs not found': %v", err)
+	if !strings.Contains(err.Error(), "specified structs not found") {
+		t.Errorf("error message should contain 'specified structs not found': %v", err)
 	}
 }
 
