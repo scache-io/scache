@@ -22,14 +22,17 @@ type {{.Name}}Scache struct {
 
 func Get{{.Name}}Scache() *{{.Name}}Scache {
 	default{{.Name}}ScacheOnce.Do(func() {
-		default{{.Name}}Scache = New{{.Name}}Scache()
+		default{{.Name}}Scache = New{{.Name}}Scache(nil)
 	})
 	return default{{.Name}}Scache
 }
 
-func New{{.Name}}Scache(opts ...config.EngineOption) *{{.Name}}Scache {
+func New{{.Name}}Scache(cfg *config.EngineConfig) *{{.Name}}Scache {
+	if cfg == nil {
+		cfg = config.DefaultEngineConfig()
+	}
 	return &{{.Name}}Scache{
-		cache: scache.New(opts...),
+		cache: scache.New(cfg),
 	}
 }
 
@@ -41,14 +44,13 @@ func (s *{{.Name}}Scache) Load(key string) ({{.Name}}, error) {
 	var obj {{.Name}}
 	err := s.cache.Load(key, &obj)
 	if err != nil {
-		return {{.Name}}{}, fmt.Errorf("key '%s' not found in cache: %w", key, err)
+		return obj, fmt.Errorf("key '%s' not found in cache: %w", key, err)
 	}
 	return obj, nil
 }
 
-func (s *{{.Name}}Scache) Delete(key string) error {
-	s.cache.Delete(key)
-	return nil
+func (s *{{.Name}}Scache) Delete(key string) bool {
+	return s.cache.Delete(key)
 }
 
 func (s *{{.Name}}Scache) Clear() error {
@@ -67,16 +69,16 @@ func (s *{{.Name}}Scache) Exists(key string) bool {
 	return s.cache.Exists(key)
 }
 
-func (s *{{.Name}}Scache) SetTTL(key string, ttl time.Duration) error {
-	success := s.cache.Expire(key, ttl)
-	if !success {
-		return fmt.Errorf("failed to set TTL for key '%s'", key)
-	}
-	return nil
+func (s *{{.Name}}Scache) SetTTL(key string, ttl time.Duration) bool {
+	return s.cache.Expire(key, ttl)
 }
 
 func (s *{{.Name}}Scache) GetTTL(key string) (time.Duration, bool) {
 	return s.cache.TTL(key)
+}
+
+func (s *{{.Name}}Scache) Stats() interface{} {
+	return s.cache.Stats()
 }
 
 {{end}}
