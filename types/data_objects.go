@@ -7,6 +7,35 @@ import (
 	"github.com/scache-io/scache/interfaces"
 )
 
+// Object pools for GC optimization
+var (
+	stringObjectPool = sync.Pool{
+		New: func() interface{} {
+			return &StringObject{
+				BaseObject: &BaseObject{},
+			}
+		},
+	}
+
+	listObjectPool = sync.Pool{
+		New: func() interface{} {
+			return &ListObject{
+				BaseObject: &BaseObject{},
+				values:     make([]interface{}, 0, 16),
+			}
+		},
+	}
+
+	hashObjectPool = sync.Pool{
+		New: func() interface{} {
+			return &HashObject{
+				BaseObject: &BaseObject{},
+				fields:     make(map[string]interface{}),
+			}
+		},
+	}
+)
+
 // BaseObject Base object implementation
 type BaseObject struct {
 	dataType  interfaces.DataType
@@ -73,6 +102,14 @@ func (o *BaseObject) CreatedAt() time.Time {
 	return o.created
 }
 
+// reset 内部重置方法（用于对象池）
+func (o *BaseObject) reset() {
+	o.dataType = ""
+	o.expiresAt = time.Time{}
+	o.created = time.Time{}
+	o.accessed = time.Time{}
+}
+
 // StringObject String object实现
 type StringObject struct {
 	*BaseObject
@@ -131,6 +168,19 @@ func (s *StringObject) Size() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.value)
+}
+
+// Reset 重置对象以便复用
+func (s *StringObject) Reset() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.value = ""
+	s.BaseObject.reset()
+}
+
+// Clear 清空数据（用于对象池）
+func (s *StringObject) Clear() {
+	s.Reset()
 }
 
 // ListObject List object实现
@@ -234,6 +284,19 @@ func (l *ListObject) Size() int {
 	return len(l.values) * 8 // 估算每个元素8字节
 }
 
+// Reset 重置对象以便复用
+func (l *ListObject) Reset() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.values = l.values[:0]
+	l.BaseObject.reset()
+}
+
+// Clear 清空数据（用于对象池）
+func (l *ListObject) Clear() {
+	l.Reset()
+}
+
 // HashObject Hash object实现
 type HashObject struct {
 	*BaseObject
@@ -317,4 +380,20 @@ func (h *HashObject) Size() int {
 		size += len(k) + 8 // 键长度 + 值估算
 	}
 	return size
+}
+
+// Reset 重置对象以便复用
+func (h *HashObject) Reset() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	// Clear the map without reallocating
+	for k := range h.fields {
+		delete(h.fields, k)
+	}
+	h.BaseObject.reset()
+}
+
+// Clear 清空数据（用于对象池）
+func (h *HashObject) Clear() {
+	h.Reset()
 }
