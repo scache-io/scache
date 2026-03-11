@@ -415,13 +415,11 @@ func TestGeneratedCodeFormat(t *testing.T) {
 
 	// 验证代码格式
 	expectedElements := []string{
-		"package testdata",
+		"package models",
 		"import",
 		"github.com/scache-io/scache",
 		"func Get",
-		"func Store",
-		"func Load",
-		"func Delete",
+		"Scache[T any]",
 		"time.Duration",
 	}
 
