@@ -12,7 +12,7 @@ var (
 	stringObjectPool = sync.Pool{
 		New: func() interface{} {
 			return &StringObject{
-				BaseObject: &BaseObject{},
+				BaseObject: BaseObject{},
 			}
 		},
 	}
@@ -20,7 +20,7 @@ var (
 	listObjectPool = sync.Pool{
 		New: func() interface{} {
 			return &ListObject{
-				BaseObject: &BaseObject{},
+				BaseObject: BaseObject{},
 				values:     make([]interface{}, 0, 16),
 			}
 		},
@@ -29,7 +29,7 @@ var (
 	hashObjectPool = sync.Pool{
 		New: func() interface{} {
 			return &HashObject{
-				BaseObject: &BaseObject{},
+				BaseObject: BaseObject{},
 				fields:     make(map[string]interface{}),
 			}
 		},
@@ -112,17 +112,42 @@ func (o *BaseObject) reset() {
 
 // StringObject String object实现
 type StringObject struct {
-	*BaseObject
+	BaseObject
 	value string
 	mu    sync.RWMutex
 }
 
-// NewStringObject 创建String object
-func NewStringObject(value string, ttl time.Duration) *StringObject {
-	return &StringObject{
-		BaseObject: NewBaseObject(interfaces.DataTypeString, ttl),
-		value:      value,
+// AcquireStringObject 从对象池获取 StringObject
+func AcquireStringObject(value string, ttl time.Duration) *StringObject {
+	obj := stringObjectPool.Get().(*StringObject)
+	obj.init(value, ttl)
+	return obj
+}
+
+// ReleaseStringObject 将对象返回到对象池
+func ReleaseStringObject(obj *StringObject) {
+	obj.Reset()
+	stringObjectPool.Put(obj)
+}
+
+// init 初始化对象（用于对象池复用）
+func (s *StringObject) init(value string, ttl time.Duration) {
+	now := time.Now()
+	var expiresAt time.Time
+	if ttl > 0 {
+		expiresAt = now.Add(ttl)
 	}
+
+	s.BaseObject.dataType = interfaces.DataTypeString
+	s.BaseObject.expiresAt = expiresAt
+	s.BaseObject.created = now
+	s.BaseObject.accessed = now
+	s.value = value
+}
+
+// NewStringObject 创建String object（从对象池获取）
+func NewStringObject(value string, ttl time.Duration) *StringObject {
+	return AcquireStringObject(value, ttl)
 }
 
 // Value 返回字符串值
@@ -185,17 +210,43 @@ func (s *StringObject) Clear() {
 
 // ListObject List object实现
 type ListObject struct {
-	*BaseObject
+	BaseObject
 	values []interface{}
 	mu     sync.RWMutex
 }
 
-// NewListObject 创建List object
-func NewListObject(values []interface{}, ttl time.Duration) *ListObject {
-	return &ListObject{
-		BaseObject: NewBaseObject(interfaces.DataTypeList, ttl),
-		values:     values,
+// AcquireListObject 从对象池获取 ListObject
+func AcquireListObject(values []interface{}, ttl time.Duration) *ListObject {
+	obj := listObjectPool.Get().(*ListObject)
+	obj.init(values, ttl)
+	return obj
+}
+
+// ReleaseListObject 将对象返回到对象池
+func ReleaseListObject(obj *ListObject) {
+	obj.Reset()
+	listObjectPool.Put(obj)
+}
+
+// init 初始化对象（用于对象池复用）
+func (l *ListObject) init(values []interface{}, ttl time.Duration) {
+	now := time.Now()
+	var expiresAt time.Time
+	if ttl > 0 {
+		expiresAt = now.Add(ttl)
 	}
+
+	l.BaseObject.dataType = interfaces.DataTypeList
+	l.BaseObject.expiresAt = expiresAt
+	l.BaseObject.created = now
+	l.BaseObject.accessed = now
+	l.values = l.values[:0]
+	l.values = append(l.values, values...)
+}
+
+// NewListObject 创建List object（从对象池获取）
+func NewListObject(values []interface{}, ttl time.Duration) *ListObject {
+	return AcquireListObject(values, ttl)
 }
 
 // Values 返回所有值
@@ -299,20 +350,51 @@ func (l *ListObject) Clear() {
 
 // HashObject Hash object实现
 type HashObject struct {
-	*BaseObject
+	BaseObject
 	fields map[string]interface{}
 	mu     sync.RWMutex
 }
 
-// NewHashObject 创建Hash object
+// AcquireHashObject 从对象池获取 HashObject
+func AcquireHashObject(fields map[string]interface{}, ttl time.Duration) *HashObject {
+	obj := hashObjectPool.Get().(*HashObject)
+	obj.init(fields, ttl)
+	return obj
+}
+
+// ReleaseHashObject 将对象返回到对象池
+func ReleaseHashObject(obj *HashObject) {
+	obj.Reset()
+	hashObjectPool.Put(obj)
+}
+
+// init 初始化对象（用于对象池复用）
+func (h *HashObject) init(fields map[string]interface{}, ttl time.Duration) {
+	now := time.Now()
+	var expiresAt time.Time
+	if ttl > 0 {
+		expiresAt = now.Add(ttl)
+	}
+
+	h.BaseObject.dataType = interfaces.DataTypeHash
+	h.BaseObject.expiresAt = expiresAt
+	h.BaseObject.created = now
+	h.BaseObject.accessed = now
+	// Clear existing fields
+	for k := range h.fields {
+		delete(h.fields, k)
+	}
+	// Copy new fields
+	if fields != nil {
+		for k, v := range fields {
+			h.fields[k] = v
+		}
+	}
+}
+
+// NewHashObject 创建Hash object（从对象池获取）
 func NewHashObject(fields map[string]interface{}, ttl time.Duration) *HashObject {
-	if fields == nil {
-		fields = make(map[string]interface{})
-	}
-	return &HashObject{
-		BaseObject: NewBaseObject(interfaces.DataTypeHash, ttl),
-		fields:     fields,
-	}
+	return AcquireHashObject(fields, ttl)
 }
 
 // Fields 返回所有字段
