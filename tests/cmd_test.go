@@ -168,12 +168,12 @@ func TestCMDGenGeneric(t *testing.T) {
 	outputStr := string(output)
 
 	// 验证生成Success
-	if !strings.Contains(outputStr, "缓存代码已生成") {
+	if !strings.Contains(outputStr, "Generated") && !strings.Contains(outputStr, "缓存代码已生成") {
 		t.Errorf("Generation failed，output: %s", outputStr)
 	}
 
-	// 验证生成的文件
-	generatedFile := filepath.Join(testdataDir, "testdata_scache.go")
+	// 验证生成的文件（基于源文件名 models.go）
+	generatedFile := filepath.Join(testdataDir, "models_scache.go")
 	defer os.Remove(generatedFile) // 清理
 
 	if _, err := os.Stat(generatedFile); os.IsNotExist(err) {
@@ -220,11 +220,11 @@ func TestCMDGenClassic(t *testing.T) {
 	}
 
 	outputStr := string(output)
-	if !strings.Contains(outputStr, "缓存代码已生成") {
+	if !strings.Contains(outputStr, "Generated") && !strings.Contains(outputStr, "缓存代码已生成") {
 		t.Errorf("Generation failed，output: %s", outputStr)
 	}
 
-	generatedFile := filepath.Join(testdataDir, "testdata_scache.go")
+	generatedFile := filepath.Join(testdataDir, "models_scache.go")
 	defer os.Remove(generatedFile)
 
 	content, err := os.ReadFile(generatedFile)
@@ -259,7 +259,7 @@ func TestCMDGenSpecificStructs(t *testing.T) {
 		t.Skipf("跳过: Requires network to install dependencies: %v", err)
 	}
 
-	generatedFile := filepath.Join(testdataDir, "testdata_scache.go")
+	generatedFile := filepath.Join(testdataDir, "models_scache.go")
 	defer os.Remove(generatedFile)
 
 	content, err := os.ReadFile(generatedFile)
@@ -297,7 +297,7 @@ func TestCMDGenMultipleStructs(t *testing.T) {
 		t.Skipf("跳过: Requires network to install dependencies: %v", err)
 	}
 
-	generatedFile := filepath.Join(testdataDir, "testdata_scache.go")
+	generatedFile := filepath.Join(testdataDir, "models_scache.go")
 	defer os.Remove(generatedFile)
 
 	content, err := os.ReadFile(generatedFile)
@@ -357,12 +357,12 @@ func TestCMDGenShortFlags(t *testing.T) {
 	}
 
 	outputStr := string(output)
-	if !strings.Contains(outputStr, "缓存代码已生成") {
+	if !strings.Contains(outputStr, "Generated") && !strings.Contains(outputStr, "缓存代码已生成") {
 		t.Errorf("Generation failed，output: %s", outputStr)
 	}
 
 	// 清理
-	os.Remove(filepath.Join(testdataDir, "testdata_scache.go"))
+	os.Remove(filepath.Join(testdataDir, "models_scache.go"))
 }
 
 // TestCMDGenExclude 测试排除目录
@@ -381,9 +381,9 @@ func TestCMDGenExclude(t *testing.T) {
 	outputStr := string(output)
 
 	// 应该能正常生成
-	if strings.Contains(outputStr, "缓存代码已生成") {
+	if strings.Contains(outputStr, "Generated") || strings.Contains(outputStr, "缓存代码已生成") {
 		// 清理
-		os.Remove(filepath.Join(testdataDir, "testdata_scache.go"))
+		os.Remove(filepath.Join(testdataDir, "models_scache.go"))
 	}
 }
 
@@ -403,7 +403,7 @@ func TestGeneratedCodeFormat(t *testing.T) {
 		t.Skipf("跳过: Requires network to install dependencies: %v", err)
 	}
 
-	generatedFile := filepath.Join(testdataDir, "testdata_scache.go")
+	generatedFile := filepath.Join(testdataDir, "models_scache.go")
 	defer os.Remove(generatedFile)
 
 	content, err := os.ReadFile(generatedFile)

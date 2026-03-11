@@ -191,13 +191,13 @@ func (e *StorageEngine) Delete(key string) bool {
 func (e *StorageEngine) returnObjectToPool(obj interfaces.DataObject) {
 	switch o := obj.(type) {
 	case *types.StringObject:
-		o.Clear()
+		types.ReleaseStringObject(o)
 		e.stats.recordPoolHit()
 	case *types.ListObject:
-		o.Clear()
+		types.ReleaseListObject(o)
 		e.stats.recordPoolHit()
 	case *types.HashObject:
-		o.Clear()
+		types.ReleaseHashObject(o)
 		e.stats.recordPoolHit()
 	default:
 		// Object type not supported for pooling
