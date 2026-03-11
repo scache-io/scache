@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 
@@ -26,14 +27,18 @@ type StorageEngine struct {
 
 // EngineStats 引擎统计
 type EngineStats struct {
-	mu          sync.RWMutex
-	hits        int64
-	misses      int64
-	sets        int64
-	deletes     int64
-	evictions   int64
-	expirations int64
-	memoryUsage int64 // 字节
+	mu            sync.RWMutex
+	hits          int64
+	misses        int64
+	sets          int64
+	deletes       int64
+	evictions     int64
+	expirations   int64
+	memoryUsage   int64 // 字节
+	gcCycles      int64 // GC cycles count
+	poolHits      int64 // Object pool hits
+	poolAllocs    int64 // Object pool allocations (new objects created)
+	lastGCTime    time.Time
 }
 
 // NewStorageEngine 创建新的Storage engine
@@ -42,8 +47,14 @@ func NewStorageEngine(engineConfig *config.EngineConfig) interfaces.StorageEngin
 		engineConfig = config.DefaultEngineConfig()
 	}
 
+	// Pre-allocate map capacity based on MaxSize to reduce GC pressure
+	initialCapacity := 64
+	if engineConfig.MaxSize > 0 && engineConfig.MaxSize < 10000 {
+		initialCapacity = engineConfig.MaxSize
+	}
+
 	engine := &StorageEngine{
-		data:      make(map[string]interfaces.DataObject),
+		data:      make(map[string]interfaces.DataObject, initialCapacity),
 		policy:    lru.NewLRUPolicy(engineConfig.MaxSize),
 		config:    engineConfig,
 		stats:     &EngineStats{},
@@ -141,6 +152,8 @@ func (e *StorageEngine) deleteExpired(key string) {
 	defer e.mu.Unlock()
 
 	if obj, exists := e.data[key]; exists && obj.IsExpired() {
+		// Return object to pool before deletion
+		e.returnObjectToPool(obj)
 		delete(e.data, key)
 		e.policy.Delete(key)
 	}
@@ -162,6 +175,9 @@ func (e *StorageEngine) Delete(key string) bool {
 			e.stats.updateMemoryUsage(-int64(obj.Size()))
 		}
 
+		// Return object to pool before deletion
+		e.returnObjectToPool(obj)
+
 		delete(e.data, key)
 		e.policy.Delete(key)
 		e.stats.recordDelete()
@@ -169,6 +185,24 @@ func (e *StorageEngine) Delete(key string) bool {
 	}
 
 	return false
+}
+
+// returnObjectToPool returns an object to the appropriate pool for reuse
+func (e *StorageEngine) returnObjectToPool(obj interfaces.DataObject) {
+	switch o := obj.(type) {
+	case *types.StringObject:
+		o.Clear()
+		e.stats.recordPoolHit()
+	case *types.ListObject:
+		o.Clear()
+		e.stats.recordPoolHit()
+	case *types.HashObject:
+		o.Clear()
+		e.stats.recordPoolHit()
+	default:
+		// Object type not supported for pooling
+		e.stats.recordPoolAlloc()
+	}
 }
 
 // Exists Check if key exists
@@ -211,7 +245,12 @@ func (e *StorageEngine) Flush() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	e.data = make(map[string]interfaces.DataObject)
+	// Return all objects to pool before clearing
+	for _, obj := range e.data {
+		e.returnObjectToPool(obj)
+	}
+
+	e.data = make(map[string]interfaces.DataObject, len(e.data))
 	e.policy.Clear()
 	e.stats.reset()
 	return nil
@@ -294,22 +333,42 @@ func (e *StorageEngine) Stats() interface{} {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
+	// Get GC stats
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+
+	// Update GC cycle count if it has changed
+	if memStats.NumGC > 0 {
+		e.stats.updateGCCycles(int64(memStats.NumGC))
+	}
+
 	return map[string]interface{}{
-		"hits":        e.stats.hits,
-		"misses":      e.stats.misses,
-		"sets":        e.stats.sets,
-		"deletes":     e.stats.deletes,
-		"evictions":   e.stats.evictions,
-		"expirations": e.stats.expirations,
-		"memory":      e.stats.memoryUsage,
-		"keys":        len(e.data),
-		"hit_rate":    e.stats.hitRate(),
+		"hits":         e.stats.hits,
+		"misses":       e.stats.misses,
+		"sets":         e.stats.sets,
+		"deletes":      e.stats.deletes,
+		"evictions":    e.stats.evictions,
+		"expirations":  e.stats.expirations,
+		"memory":       e.stats.memoryUsage,
+		"keys":         len(e.data),
+		"hit_rate":     e.stats.hitRate(),
+		"gc_cycles":    e.stats.gcCycles,
+		"pool_hits":    e.stats.poolHits,
+		"pool_allocs":  e.stats.poolAllocs,
+		"heap_alloc":   memStats.HeapAlloc,
+		"heap_sys":     memStats.HeapSys,
+		"num_gc":       memStats.NumGC,
+		"gc_cpu_frac":  memStats.GCCPUFraction,
 	}
 }
 
 // evictOne 淘汰一个键
 func (e *StorageEngine) evictOne() {
 	if key := e.policy.Evict(); key != "" {
+		if obj, exists := e.data[key]; exists {
+			// Return object to pool before eviction
+			e.returnObjectToPool(obj)
+		}
 		delete(e.data, key)
 		e.stats.recordEviction()
 	}
@@ -341,6 +400,8 @@ func (e *StorageEngine) cleanupExpired() {
 
 	for key, obj := range e.data {
 		if obj.IsExpired() {
+			// Return object to pool before deletion
+			e.returnObjectToPool(obj)
 			delete(e.data, key)
 			e.policy.Delete(key)
 			e.stats.recordExpiration()
@@ -396,6 +457,25 @@ func (s *EngineStats) recordExpiration() {
 	s.expirations++
 }
 
+func (s *EngineStats) recordPoolHit() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.poolHits++
+}
+
+func (s *EngineStats) recordPoolAlloc() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.poolAllocs++
+}
+
+func (s *EngineStats) updateGCCycles(cycles int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.gcCycles = cycles
+	s.lastGCTime = time.Now()
+}
+
 func (s *EngineStats) hitRate() float64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -416,6 +496,9 @@ func (s *EngineStats) reset() {
 	s.deletes = 0
 	s.evictions = 0
 	s.expirations = 0
+	s.gcCycles = 0
+	s.poolHits = 0
+	s.poolAllocs = 0
 }
 
 // updateMemoryUsage 更新内存使用统计
